@@ -178,7 +178,11 @@ export default function DiagnosisPage() {
                 <p className="mt-4 text-sm">あなたに最適な手順を組み立てています…</p>
               </div>
             ) : (
-              <ResultView recommendation={recommendation} onReset={reset} />
+              <ResultView
+                recommendation={recommendation}
+                totals={computeResult(answers).totals}
+                onReset={reset}
+              />
             )}
           </motion.div>
         )}

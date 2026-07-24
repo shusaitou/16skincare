@@ -3,33 +3,36 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import type { Product, RecommendationResponse } from '../lib/types'
-import { colorLabel, genderLabel, skinLabel, styleLabel } from '../lib/recommend'
+import type { ScoreKey } from '../lib/diagnosisStore'
+import { colorLabel, styleLabel } from '../lib/recommend'
 import { PRODUCT_DISCLAIMER } from '../lib/techniques'
+import PersonaCard from './PersonaCard'
+import ScoreChart from './ScoreChart'
+import ColorPalette from './ColorPalette'
+import ShareCard from './ShareCard'
 
 type Props = {
   recommendation: RecommendationResponse
+  totals: Partial<Record<ScoreKey, number>>
   onReset: () => void
 }
 
-export default function ResultView({ recommendation, onReset }: Props) {
+export default function ResultView({ recommendation, totals, onReset }: Props) {
   const { result, steps, correctionReason } = recommendation
   const hasProducts = steps.some((s) => s.products && s.products.length > 0)
 
   return (
     <div className="space-y-6">
-      {/* 診断サマリー */}
-      <div className="bg-ivory rounded-sm border border-line p-8">
-        <p className="text-xs tracking-editorial text-accent mb-1">YOUR RESULT</p>
-        <h2 className="font-serif text-2xl text-ink mb-6">あなたの診断結果</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-line rounded-sm overflow-hidden">
-          <Badge label="性別" value={genderLabel(result.gender)} />
-          <Badge label="肌質" value={skinLabel(result.skin)} />
-          <Badge label="カラー" value={colorLabel(result.color)} />
-          <Badge label="系統" value={styleLabel(result.style)} />
-        </div>
-      </div>
+      {/* 1. タイプのアイデンティティ */}
+      <PersonaCard result={result} />
 
-      {/* 補正が入った場合の説明 */}
+      {/* 2. スコアの可視化 */}
+      <ScoreChart totals={totals} result={result} />
+
+      {/* 3. カラーパレット */}
+      <ColorPalette color={result.color} />
+
+      {/* 4. 補正が入った場合の説明 */}
       {correctionReason && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -40,12 +43,15 @@ export default function ResultView({ recommendation, onReset }: Props) {
         </motion.div>
       )}
 
-      {/* おすすめ手順 */}
+      {/* 5. おすすめ手順（成分・製品つき） */}
       <div className="bg-ivory rounded-sm border border-line p-8">
         <p className="text-xs tracking-editorial text-accent mb-1">HOW TO</p>
-        <h3 className="font-serif text-xl text-ink mb-6">
+        <h3 className="font-serif text-xl text-ink mb-1">
           おすすめの手順 — 全{steps.length}ステップ
         </h3>
+        <p className="text-sm text-muted mb-6">
+          {colorLabel(result.color)} × {styleLabel(result.style)} に最適化
+        </p>
         <ol className="space-y-6">
           {steps.map((step, i) => (
             <motion.li
@@ -67,7 +73,6 @@ export default function ResultView({ recommendation, onReset }: Props) {
               <div className="flex-1 pb-6 border-b border-line last:border-0">
                 <p className="text-ink leading-relaxed">{step.description}</p>
 
-                {/* 注目成分 */}
                 {step.ingredients && step.ingredients.length > 0 && (
                   <div className="mt-3">
                     <p className="text-xs tracking-editorial text-muted mb-1">注目成分</p>
@@ -84,7 +89,6 @@ export default function ResultView({ recommendation, onReset }: Props) {
                   </div>
                 )}
 
-                {/* 代表製品の例 */}
                 {step.products && step.products.length > 0 && (
                   <div className="mt-3">
                     <p className="text-xs tracking-editorial text-muted mb-1">製品の一例</p>
@@ -105,21 +109,15 @@ export default function ResultView({ recommendation, onReset }: Props) {
         )}
       </div>
 
+      {/* 6. シェア */}
+      <ShareCard result={result} />
+
       <button
         onClick={onReset}
         className="w-full sm:w-auto px-6 py-3 bg-ink text-cream rounded-sm hover:bg-accent transition-colors"
       >
         もう一度診断する
       </button>
-    </div>
-  )
-}
-
-function Badge({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-ivory p-4 text-center">
-      <p className="text-xs text-muted mb-1">{label}</p>
-      <p className="text-sm text-ink">{value}</p>
     </div>
   )
 }
