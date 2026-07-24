@@ -28,9 +28,18 @@ npm run dev
 
 ## 実装済み
 
-- **診断UI** (`app/diagnosis`): Framer Motion による画面遷移アニメーション、進捗バー、戻る機能、Zustand による回答state管理。全6問（肌質×2 / カラー×2 / 系統×2）。
-- **コアアルゴリズム** (`lib/recommend.ts`): タグベースの動的フィルタリング。「なりたい系統」でメイク手法を抽出 → 肌質との矛盾を検出 → 相反する場合は高保湿スキンケア工程を先頭に自動挿入（補正処理）。
-- **モックデータ** (`lib/techniques.ts`): `makeup_techniques` / `technique_tags` を Supabase スキーマと同形状で用意。DB 接続後は `getTechniques()` をクエリに差し替えるだけ。
+- **診断UI** (`app/diagnosis`): コスメ誌エディトリアル風デザイン（明朝見出し・暖色ニュートラル）。Framer Motion による画面遷移、進捗バー、戻る機能、Zustand で state 管理。フローは `性別 → 肌質×2・カラー×2 → なりたい系統 → 結果`。
+- **性別対応**: 冒頭でメンズ/レディースを選択し、手法の `gender`(unisex/men/women) で出し分け。メンズ専用手法（ヒゲ剃り後保湿・皮脂対策・ナチュラル眉）を用意。
+- **成分・製品提案**: 各手順に「注目成分」と「代表製品の一例」を表示（免責つき）。
+- **コアアルゴリズム** (`lib/recommend.ts`): タグベースの動的フィルタリング。性別・系統・カラーで手法を抽出 → 肌質との矛盾を検出 → 相反時は高保湿工程を先頭に自動挿入（補正処理）。
+- **API** (`app/api/diagnosis`): 入力検証 → users保存(任意) → 手順をJSON返却。
+- **テスト** (`tests/`): Vitest で補正・フィルタ・性別出し分け・成分/製品受け渡し・バリデーションを検証（`npm test`）。
+- **モックデータ** (`lib/techniques.ts`): DB 接続後は `getTechniques()` をクエリに差し替えるだけ。
+
+### DB担当への申し送り（スキーマ拡張が必要な項目）
+- `makeup_techniques` に `gender`(text: unisex/men/women) 列を追加
+- 手法の成分・製品は子テーブル（例: `technique_ingredients` / `technique_products`）が必要
+- `technique_tags.tag_type` の CHECK制約は現状 skin/color/style のまま（gender はタグではなく列で持つ想定）
 
 ## ディレクトリ
 

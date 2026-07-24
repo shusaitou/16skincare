@@ -47,15 +47,17 @@ export function buildRecommendation(
   result: DiagnosisResult,
   techniques: MakeupTechnique[] = getTechniques()
 ): RecommendationResponse {
-  const { skin, color, style } = result
+  const { gender, skin, color, style } = result
 
-  // --- 1. 嗜好（系統・カラー）でフィルタ ---
+  // --- 1. 性別・嗜好（系統・カラー）でフィルタ ---
   const selected = techniques.filter((t) => {
+    // gender 軸: unisex は全員、それ以外はユーザーの性別に一致した場合のみ通過
+    const genderOk = t.gender === 'unisex' || t.gender === gender
     // style 軸: ユーザーの系統に一致、または style タグ無し（万能）なら通過
     const styleOk = !hasAxis(t, 'style') || hasTag(t, 'style', style)
     // color 軸: ユーザーのカラーに一致、または color タグ無し（万能）なら通過
     const colorOk = !hasAxis(t, 'color') || hasTag(t, 'color', color)
-    return styleOk && colorOk
+    return genderOk && styleOk && colorOk
   })
 
   // --- 2. 肌質との矛盾チェック ---
@@ -73,6 +75,8 @@ export function buildRecommendation(
       step_order: t.step_order,
       description: t.description,
       image_url: t.image_url,
+      ingredients: t.ingredients,
+      products: t.products,
     }))
 
   // --- 3. 補正処理: 高保湿工程を先頭に挿入 ---
@@ -81,6 +85,8 @@ export function buildRecommendation(
       id: CORRECTION_STEP.id,
       step_order: 0,
       description: CORRECTION_STEP.description,
+      ingredients: CORRECTION_STEP.ingredients,
+      products: CORRECTION_STEP.products,
       isCorrection: true,
     })
   }
@@ -96,6 +102,9 @@ export function buildRecommendation(
 }
 
 // --- 表示用ラベル ---
+export function genderLabel(g: DiagnosisResult['gender']): string {
+  return { men: 'メンズ', women: 'レディース' }[g]
+}
 export function skinLabel(s: SkinType): string {
   return { dry: '乾燥肌', oily: '脂性肌' }[s]
 }

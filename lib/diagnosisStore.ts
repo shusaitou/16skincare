@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { ColorType, SkinType, StyleType } from './types'
+import type { ColorType, Gender, SkinType, StyleType } from './types'
 
 // 診断で集計するスコアキー（= options のスコア列に対応）。
 // 系統(style)は診断せず、ユーザーが直接選ぶためここには含めない。
@@ -76,6 +76,8 @@ export const QUESTIONS: Question[] = [
 ]
 
 interface DiagnosisState {
+  // 冒頭で選ぶ性別（未選択なら null）
+  gender: Gender | null
   index: number
   // question.id -> 選んだ option
   answers: Record<string, Option>
@@ -83,18 +85,21 @@ interface DiagnosisState {
   questionsDone: boolean
   // ユーザーが直接選ぶ「なりたい系統」
   style: StyleType | null
+  setGender: (gender: Gender) => void
   select: (question: Question, option: Option) => void
   setStyle: (style: StyleType) => void
   back: () => void
   reset: () => void
 }
 
-// 診断の完了 = 全設問回答済み かつ 系統を選択済み
+// 診断の完了 = 性別選択済み かつ 全設問回答済み かつ 系統を選択済み
 export const useDiagnosisStore = create<DiagnosisState>((set) => ({
+  gender: null,
   index: 0,
   answers: {},
   questionsDone: false,
   style: null,
+  setGender: (gender) => set({ gender }),
   select: (question, option) =>
     set((s) => {
       const answers = { ...s.answers, [question.id]: option }
@@ -108,11 +113,14 @@ export const useDiagnosisStore = create<DiagnosisState>((set) => ({
   setStyle: (style) => set({ style }),
   back: () =>
     set((s) => {
-      // 系統選択画面から戻る場合は最後の設問へ
+      // 系統選択画面から戻る → 最後の設問へ
       if (s.questionsDone) return { questionsDone: false, style: null }
+      // 最初の設問から戻る → 性別選択へ
+      if (s.index === 0) return { gender: null }
       return { index: Math.max(0, s.index - 1) }
     }),
-  reset: () => set({ index: 0, answers: {}, questionsDone: false, style: null }),
+  reset: () =>
+    set({ gender: null, index: 0, answers: {}, questionsDone: false, style: null }),
 }))
 
 // 回答からスコアを集計し、各軸のトップを診断結果として返す（肌質・カラー）

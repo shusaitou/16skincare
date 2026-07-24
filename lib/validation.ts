@@ -1,5 +1,6 @@
-import type { ColorType, DiagnosisResult, SkinType, StyleType } from './types'
+import type { ColorType, DiagnosisResult, Gender, SkinType, StyleType } from './types'
 
+const GENDER_VALUES: Gender[] = ['men', 'women']
 const SKIN_VALUES: SkinType[] = ['dry', 'oily']
 const COLOR_VALUES: ColorType[] = ['spring', 'summer', 'autumn', 'winter']
 const STYLE_VALUES: StyleType[] = ['mode', 'clean', 'glow']
@@ -19,6 +20,9 @@ export function parseDiagnosisInput(body: unknown): ParseResult {
   }
   const b = body as Record<string, unknown>
 
+  if (!isOneOf<Gender>(b.gender, GENDER_VALUES)) {
+    return { ok: false, error: `gender は ${GENDER_VALUES.join(' / ')} のいずれかである必要があります` }
+  }
   if (!isOneOf<SkinType>(b.skin, SKIN_VALUES)) {
     return { ok: false, error: `skin は ${SKIN_VALUES.join(' / ')} のいずれかである必要があります` }
   }
@@ -34,7 +38,7 @@ export function parseDiagnosisInput(body: unknown): ParseResult {
 
   return {
     ok: true,
-    result: { skin: b.skin, color: b.color, style: b.style },
+    result: { gender: b.gender, skin: b.skin, color: b.color, style: b.style },
     authId,
   }
 }

@@ -8,4 +8,11 @@ html, body, #__next {
 
 body {
   -webkit-font-smoothing: antialiased;
+  background-color: #FAF6F1; /* cream */
+  color: #2B2622; /* ink */
+}
+
+/* エディトリアルな見出しの字間 */
+.tracking-editorial {
+  letter-spacing: 0.02em;
 }

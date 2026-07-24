@@ -9,19 +9,17 @@ type Props = {
   onSelect: (style: StyleType) => void
 }
 
-const STYLES: { value: StyleType; title: string; desc: string; emoji: string }[] = [
-  { value: 'mode', title: 'モード系', desc: 'マットでシャープな端正さ', emoji: '🖤' },
-  { value: 'clean', title: '清潔感重視', desc: '素肌っぽいナチュラルさ', emoji: '🤍' },
-  { value: 'glow', title: 'ツヤ・グロウ系', desc: '内側から発光するうるおい', emoji: '✨' },
+const STYLES: { value: StyleType; title: string; desc: string }[] = [
+  { value: 'mode', title: 'モード', desc: 'マットでシャープな端正さ' },
+  { value: 'clean', title: 'クリーン', desc: '素肌っぽいナチュラルな清潔感' },
+  { value: 'glow', title: 'グロウ', desc: '内側から発光するうるおいツヤ' },
 ]
 
 export default function StyleSelect({ selected, onSelect }: Props) {
   return (
-    <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100">
-      <span className="inline-block text-xs font-medium text-blue-600 bg-blue-50 rounded-full px-3 py-1 mb-3">
-        なりたい系統
-      </span>
-      <h2 className="text-lg font-semibold mb-4 text-gray-800">
+    <div className="bg-ivory rounded-sm border border-line p-8">
+      <p className="text-xs tracking-editorial text-accent mb-3">STYLE — なりたい系統</p>
+      <h2 className="font-serif text-2xl mb-6 text-ink">
         どんな仕上がりになりたいですか？
       </h2>
       <div className="grid grid-cols-1 gap-3">
@@ -34,19 +32,14 @@ export default function StyleSelect({ selected, onSelect }: Props) {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className={`flex items-center gap-3 text-left p-4 rounded-xl border transition-colors ${
-                active
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+              whileHover={{ x: 4 }}
+              whileTap={{ scale: 0.99 }}
+              className={`flex items-baseline gap-4 text-left px-5 py-4 rounded-sm border transition-colors ${
+                active ? 'border-accent bg-accent-soft' : 'border-line hover:border-accent'
               }`}
             >
-              <span className="text-2xl">{s.emoji}</span>
-              <span>
-                <span className="block font-medium text-gray-800">{s.title}</span>
-                <span className="block text-sm text-gray-500">{s.desc}</span>
-              </span>
+              <span className="font-serif text-lg text-ink w-24 shrink-0">{s.title}</span>
+              <span className="text-sm text-muted">{s.desc}</span>
             </motion.button>
           )
         })}

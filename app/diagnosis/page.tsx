@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import GenderSelect from '../../components/GenderSelect'
 import QuestionCard from '../../components/QuestionCard'
 import StyleSelect from '../../components/StyleSelect'
 import ResultView from '../../components/ResultView'
@@ -13,33 +14,51 @@ import {
 import { buildRecommendation } from '../../lib/recommend'
 import type { RecommendationResponse } from '../../lib/types'
 
-// 診断のフェーズ: 設問 → 系統選択 → 結果
-type Phase = 'questions' | 'style' | 'result'
+// 診断のフェーズ: 性別 → 設問 → 系統選択 → 結果
+type Phase = 'gender' | 'questions' | 'style' | 'result'
 
 export default function DiagnosisPage() {
-  const { index, answers, questionsDone, style, select, setStyle, back, reset } =
-    useDiagnosisStore()
+  const {
+    gender,
+    index,
+    answers,
+    questionsDone,
+    style,
+    setGender,
+    select,
+    setStyle,
+    back,
+    reset,
+  } = useDiagnosisStore()
 
-  const phase: Phase = !questionsDone ? 'questions' : style === null ? 'style' : 'result'
+  const phase: Phase =
+    gender === null
+      ? 'gender'
+      : !questionsDone
+        ? 'questions'
+        : style === null
+          ? 'style'
+          : 'result'
   const current = QUESTIONS[index]
 
-  // 進捗: 設問 + 系統選択の合計ステップに対する割合
-  const totalSteps = QUESTIONS.length + 1
-  const doneSteps = questionsDone ? (style ? totalSteps : QUESTIONS.length) : index
+  // 進捗: 性別 + 設問 + 系統選択 の合計に対する割合
+  const totalSteps = 1 + QUESTIONS.length + 1
+  const doneSteps =
+    gender === null ? 0 : questionsDone ? (style ? totalSteps : 1 + QUESTIONS.length) : 1 + index
   const progress = Math.round((doneSteps / totalSteps) * 100)
 
   const [recommendation, setRecommendation] =
     useState<RecommendationResponse | null>(null)
   const [loading, setLoading] = useState(false)
 
-  // 系統まで揃ったら API 経由で保存＋手順取得。失敗時はローカル計算にフォールバック。
+  // 全て揃ったら API 経由で保存＋手順取得。失敗時はローカル計算にフォールバック。
   useEffect(() => {
     if (phase !== 'result') {
       setRecommendation(null)
       return
     }
     const base = computeResult(answers)
-    const payload = { skin: base.skin, color: base.color, style: style! }
+    const payload = { gender: gender!, skin: base.skin, color: base.color, style: style! }
 
     let cancelled = false
     setLoading(true)
@@ -63,25 +82,44 @@ export default function DiagnosisPage() {
     return () => {
       cancelled = true
     }
-  }, [phase, answers, style])
+  }, [phase, answers, style, gender])
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-1 text-gray-800">MBTI風 メイク診断</h1>
-      <p className="text-sm text-gray-500 mb-6">
-        肌質 × パーソナルカラー × なりたい系統から最適な手順を提案します
-      </p>
+    <div className="max-w-2xl mx-auto px-6 py-12">
+      <header className="mb-10">
+        <p className="text-xs tracking-editorial text-accent mb-2">16 SKINCARE</p>
+        <h1 className="font-serif text-3xl text-ink leading-tight">
+          パーソナライズド
+          <br />
+          メイク診断
+        </h1>
+        <p className="text-sm text-muted mt-3">
+          性別 × 肌質 × パーソナルカラー × なりたい系統から、最適な手順と製品を提案します。
+        </p>
+      </header>
 
       {/* 進捗バー */}
-      <div className="h-2 w-full bg-gray-200 rounded-full mb-6 overflow-hidden">
+      <div className="h-px w-full bg-line mb-10 relative">
         <motion.div
-          className="h-full bg-blue-600"
+          className="absolute inset-y-0 left-0 h-px bg-accent"
           animate={{ width: `${progress}%` }}
           transition={{ type: 'spring', stiffness: 120, damping: 20 }}
         />
       </div>
 
       <AnimatePresence mode="wait">
+        {phase === 'gender' && (
+          <motion.div
+            key="gender"
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -40 }}
+            transition={{ duration: 0.25 }}
+          >
+            <GenderSelect selected={gender} onSelect={setGender} />
+          </motion.div>
+        )}
+
         {phase === 'questions' && (
           <motion.div
             key={current.id}
@@ -95,15 +133,11 @@ export default function DiagnosisPage() {
               selectedId={answers[current.id]?.id}
               onSelect={(opt) => select(current, opt)}
             />
-            <div className="flex items-center justify-between mt-4">
-              <button
-                onClick={back}
-                disabled={index === 0}
-                className="text-sm text-gray-500 disabled:opacity-30"
-              >
+            <div className="flex items-center justify-between mt-5">
+              <button onClick={back} className="text-sm text-muted hover:text-ink">
                 ← 戻る
               </button>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-muted">
                 {index + 1} / {QUESTIONS.length}
               </p>
             </div>
@@ -119,8 +153,8 @@ export default function DiagnosisPage() {
             transition={{ duration: 0.25 }}
           >
             <StyleSelect selected={style} onSelect={setStyle} />
-            <div className="mt-4">
-              <button onClick={back} className="text-sm text-gray-500">
+            <div className="mt-5">
+              <button onClick={back} className="text-sm text-muted hover:text-ink">
                 ← 戻る
               </button>
             </div>
@@ -135,13 +169,13 @@ export default function DiagnosisPage() {
             transition={{ duration: 0.3 }}
           >
             {loading || !recommendation ? (
-              <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center text-gray-500">
+              <div className="bg-ivory p-12 rounded-sm border border-line text-center text-muted">
                 <motion.div
-                  className="inline-block w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full"
+                  className="inline-block w-6 h-6 border-2 border-accent border-t-transparent rounded-full"
                   animate={{ rotate: 360 }}
                   transition={{ repeat: Infinity, duration: 0.8, ease: 'linear' }}
                 />
-                <p className="mt-3 text-sm">あなたに最適な手順を組み立てています…</p>
+                <p className="mt-4 text-sm">あなたに最適な手順を組み立てています…</p>
               </div>
             ) : (
               <ResultView recommendation={recommendation} onReset={reset} />

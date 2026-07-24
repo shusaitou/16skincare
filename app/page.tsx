@@ -3,11 +3,40 @@ import Link from 'next/link'
 
 export default function Home() {
   return (
-    <div className="max-w-4xl mx-auto p-8">
-      <h1 className="text-3xl font-bold mb-4">16 Skincare — 診断デモ</h1>
-      <p className="mb-6">MBTI風診断とタグベースのレコメンドのプロトタイプです。</p>
-      <div className="space-x-3">
-        <Link href="/diagnosis" className="px-4 py-2 bg-blue-600 text-white rounded">診断を始める（雛形）</Link>
+    <div className="max-w-3xl mx-auto px-6 py-20">
+      <p className="text-xs tracking-editorial text-accent mb-4">
+        PERSONALIZED SKINCARE &amp; MAKEUP
+      </p>
+      <h1 className="font-serif text-4xl sm:text-5xl text-ink leading-tight mb-6">
+        あなたの肌と
+        <br />
+        なりたい印象から、
+        <br />
+        最適な一手を。
+      </h1>
+      <p className="text-muted leading-relaxed mb-10 max-w-lg">
+        肌質 × パーソナルカラー × なりたい系統をMBTI風に診断。
+        メンズ・レディースそれぞれに、具体的な成分と代表製品まで含めた
+        スキンケア・メイクの手順を提案します。
+      </p>
+      <Link
+        href="/diagnosis"
+        className="inline-block px-8 py-4 bg-ink text-cream rounded-sm hover:bg-accent transition-colors tracking-editorial text-sm"
+      >
+        診断を始める →
+      </Link>
+
+      <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-px bg-line border border-line rounded-sm overflow-hidden">
+        {[
+          { t: '肌質診断', d: '乾燥／脂性を見極める' },
+          { t: 'パーソナルカラー', d: '4シーズンで判定' },
+          { t: '成分・製品提案', d: '注目成分と代表製品の例' },
+        ].map((f) => (
+          <div key={f.t} className="bg-ivory p-6">
+            <p className="font-serif text-lg text-ink mb-1">{f.t}</p>
+            <p className="text-sm text-muted">{f.d}</p>
+          </div>
+        ))}
       </div>
     </div>
   )
