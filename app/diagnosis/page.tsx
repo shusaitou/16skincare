@@ -1,103 +1,89 @@
-import React, { useState } from 'react'
+'use client'
+
+import React, { useMemo } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import QuestionCard from '../../components/QuestionCard'
-
-type Option = { id: string; label: string; scores: { [k: string]: number } }
-
-const QUESTIONS: { id: string; content: string; options: Option[] }[] = [
-  {
-    id: 'q1',
-    content: '肌の感触はどうですか？',
-    options: [
-      { id: 'q1a', label: 'つっぱる・乾燥しやすい', scores: { dry: 2 } },
-      { id: 'q1b', label: 'Tゾーンがテカる', scores: { oily: 2 } },
-      { id: 'q1c', label: '混合肌', scores: { combination: 2 } }
-    ]
-  },
-  {
-    id: 'q2',
-    content: '好きなメイクの質感は？',
-    options: [
-      { id: 'q2a', label: 'マットでシャープ', scores: { mode: 2 } },
-      { id: 'q2b', label: 'ツヤ感のある自然な仕上がり', scores: { clean: 2 } },
-      { id: 'q2c', label: '光沢のあるグロウ', scores: { glow: 2 } }
-    ]
-  },
-  {
-    id: 'q3',
-    content: 'パーソナルカラーはどれに近いですか？',
-    options: [
-      { id: 'q3a', label: '暖かい色味（スプリング／オータム系）', scores: { warm: 2 } },
-      { id: 'q3b', label: '涼しげな色味（サマー／ウィンター系）', scores: { cool: 2 } }
-    ]
-  }
-]
+import ResultView from '../../components/ResultView'
+import {
+  QUESTIONS,
+  computeResult,
+  useDiagnosisStore,
+} from '../../lib/diagnosisStore'
+import { buildRecommendation } from '../../lib/recommend'
 
 export default function DiagnosisPage() {
-  const [index, setIndex] = useState(0)
-  const [answers, setAnswers] = useState<Option[]>([])
-  const [finished, setFinished] = useState(false)
+  const { index, answers, finished, select, back, reset } = useDiagnosisStore()
 
-  function handleSelect(opt: Option) {
-    setAnswers((s) => [...s, opt])
-    if (index + 1 < QUESTIONS.length) {
-      setIndex(index + 1)
-    } else {
-      setFinished(true)
-    }
-  }
+  const current = QUESTIONS[index]
+  const progress = finished ? 100 : Math.round((index / QUESTIONS.length) * 100)
 
-  function computeResult() {
-    const totals: { [k: string]: number } = {}
-    for (const a of answers) {
-      for (const k of Object.keys(a.scores)) {
-        totals[k] = (totals[k] || 0) + (a.scores[k] || 0)
-      }
-    }
-    // pick top keys for skin and style
-    const skinKeys = ['dry', 'oily', 'combination']
-    const styleKeys = ['mode', 'clean', 'glow']
-    const colorKeys = ['warm', 'cool']
-
-    const pick = (keys: string[]) => {
-      let best = keys[0]
-      for (const k of keys) {
-        if ((totals[k] || 0) > (totals[best] || 0)) best = k
-      }
-      return best
-    }
-
-    return {
-      skin: pick(skinKeys),
-      style: pick(styleKeys),
-      color: pick(colorKeys),
-      totals
-    }
-  }
+  // 回答が変わるたびに結果とレコメンドを再計算
+  const recommendation = useMemo(() => {
+    if (!finished) return null
+    const result = computeResult(answers)
+    return buildRecommendation({
+      skin: result.skin,
+      color: result.color,
+      style: result.style,
+    })
+  }, [finished, answers])
 
   return (
-    <div className="max-w-3xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4">MBTI風 診断 (雛形)</h1>
+    <div className="max-w-2xl mx-auto p-6">
+      <h1 className="text-2xl font-bold mb-1 text-gray-800">MBTI風 メイク診断</h1>
+      <p className="text-sm text-gray-500 mb-6">
+        肌質 × パーソナルカラー × なりたい系統から最適な手順を提案します
+      </p>
 
-      {!finished && (
-        <div>
-          <QuestionCard question={QUESTIONS[index]} onSelect={handleSelect} />
-          <p className="text-sm text-gray-500">{index + 1} / {QUESTIONS.length}</p>
-        </div>
-      )}
+      {/* 進捗バー */}
+      <div className="h-2 w-full bg-gray-200 rounded-full mb-6 overflow-hidden">
+        <motion.div
+          className="h-full bg-blue-600"
+          animate={{ width: `${progress}%` }}
+          transition={{ type: 'spring', stiffness: 120, damping: 20 }}
+        />
+      </div>
 
-      {finished && (
-        <div className="bg-white p-4 rounded shadow">
-          <h2 className="text-lg font-medium mb-2">診断結果</h2>
-          <pre className="text-sm bg-gray-50 p-3 rounded">
-            {JSON.stringify(computeResult(), null, 2)}
-          </pre>
-          <div className="mt-3">
-            <button className="px-4 py-2 bg-blue-600 text-white rounded" onClick={() => { setIndex(0); setAnswers([]); setFinished(false) }}>
-              再診断
-            </button>
-          </div>
-        </div>
-      )}
+      <AnimatePresence mode="wait">
+        {!finished ? (
+          <motion.div
+            key={current.id}
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -40 }}
+            transition={{ duration: 0.25 }}
+          >
+            <QuestionCard
+              question={current}
+              selectedId={answers[current.id]?.id}
+              onSelect={(opt) => select(current, opt)}
+            />
+            <div className="flex items-center justify-between mt-4">
+              <button
+                onClick={back}
+                disabled={index === 0}
+                className="text-sm text-gray-500 disabled:opacity-30"
+              >
+                ← 戻る
+              </button>
+              <p className="text-sm text-gray-500">
+                {index + 1} / {QUESTIONS.length}
+              </p>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="result"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            {recommendation && (
+              <ResultView recommendation={recommendation} onReset={reset} />
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
