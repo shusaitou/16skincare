@@ -63,10 +63,7 @@ export default function ResultView({ recommendation, onReset }: Props) {
               >
                 {i + 1}
               </span>
-              <div>
-                <p className="font-medium text-gray-800">{step.title}</p>
-                <p className="text-sm text-gray-600">{step.description}</p>
-              </div>
+              <p className="text-sm text-gray-700 self-center">{step.description}</p>
             </motion.li>
           ))}
         </ol>

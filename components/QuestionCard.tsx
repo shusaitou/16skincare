@@ -13,7 +13,6 @@ type Props = {
 const categoryLabel: Record<Question['category'], string> = {
   skin: '肌質',
   color: 'パーソナルカラー',
-  style: 'なりたい系統',
 }
 
 export default function QuestionCard({ question, selectedId, onSelect }: Props) {

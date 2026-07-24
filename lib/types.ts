@@ -1,9 +1,11 @@
 // 診断・レコメンドで共有する型定義
-// Supabase のテーブル形状（makeup_techniques / technique_tags）に対応させ、
-// 後でモックデータを DB クエリに差し替えるだけで動くようにしている。
+// Supabase の実テーブル（makeup_techniques / technique_tags / options / users）に対応。
+//   - 肌質:  options の score_dry / score_oily に対応（dry / oily）
+//   - カラー: options の score_spring/summer/autumn/winter に対応（4シーズン）
+//   - 系統:  診断質問ではなくユーザーが直接選ぶ嗜好（technique_tags の style タグ）
 
-export type SkinType = 'dry' | 'oily' | 'combination'
-export type ColorType = 'warm' | 'cool'
+export type SkinType = 'dry' | 'oily'
+export type ColorType = 'spring' | 'summer' | 'autumn' | 'winter'
 export type StyleType = 'mode' | 'clean' | 'glow'
 
 // technique_tags.tag_type
@@ -20,13 +22,12 @@ export interface TechniqueTag {
 }
 
 // メイク手法・スキンケア手順のマスター（= makeup_techniques テーブル1行）
+// DB は title 列を持たず description のみ。tags はフロント都合で同梱。
 export interface MakeupTechnique {
   id: string
   step_order: number
-  title: string
   description: string
   image_url?: string
-  // 正規化前提だが、フロントで扱いやすいよう tags を同梱しておく
   tags: TechniqueTag[]
 }
 
@@ -41,7 +42,6 @@ export interface DiagnosisResult {
 export interface RecommendedStep {
   id: string
   step_order: number
-  title: string
   description: string
   image_url?: string
   // 補正処理で先頭に自動挿入されたステップかどうか

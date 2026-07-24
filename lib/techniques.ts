@@ -5,7 +5,7 @@ import type { MakeupTechnique } from './types'
 //
 // タグの考え方:
 //   - style タグ: どの「なりたい系統」向けの手法か（mode / clean / glow）
-//   - color タグ: どのパーソナルカラー向けか（warm / cool）
+//   - color タグ: どのパーソナルカラー向けか（spring / summer / autumn / winter）
 //   - skin  タグ: その手法が前提とする / 促進する肌傾向（例: mode=マット肌は乾燥を促進）
 //   - タグが無い軸は「万能（どのユーザーにも適用可）」を意味する
 export const TECHNIQUES: MakeupTechnique[] = [
@@ -13,15 +13,13 @@ export const TECHNIQUES: MakeupTechnique[] = [
   {
     id: 't-base-cleanse',
     step_order: 10,
-    title: '洗顔・クレンジング',
-    description: 'ぬるま湯で肌への摩擦を抑えながら洗顔し、余分な皮脂と汚れを落とす。',
+    description: 'ぬるま湯で摩擦を抑えて洗顔し、余分な皮脂と汚れを落とす。',
     tags: [],
   },
   {
     id: 't-base-lotion',
     step_order: 20,
-    title: '化粧水で整える',
-    description: 'ハンドプレスで化粧水をなじませ、次の工程の浸透を高める。',
+    description: '化粧水をハンドプレスでなじませ、次の工程の浸透を高める。',
     tags: [],
   },
 
@@ -29,8 +27,7 @@ export const TECHNIQUES: MakeupTechnique[] = [
   {
     id: 't-mode-matte',
     step_order: 40,
-    title: 'マットベースメイク',
-    description: '皮脂を抑えるマット系下地とパウダーファンデでシャープな陶器肌をつくる。',
+    description: 'マット下地とパウダーファンデでシャープな陶器肌をつくる。',
     tags: [
       { technique_id: 't-mode-matte', tag_type: 'style', tag_value: 'mode' },
       // マット肌手法は乾燥を促進するため、skin=dry と相反する
@@ -40,53 +37,58 @@ export const TECHNIQUES: MakeupTechnique[] = [
   {
     id: 't-clean-natural',
     step_order: 40,
-    title: 'セミマットな清潔感ベース',
-    description: '薄膜のトーンアップ下地で毛穴を自然にカバーし、清潔感のある素肌感を演出。',
+    description: '薄膜のトーンアップ下地で毛穴を自然にカバーし、清潔感のある素肌感に。',
     tags: [{ technique_id: 't-clean-natural', tag_type: 'style', tag_value: 'clean' }],
   },
   {
     id: 't-glow-dewy',
     step_order: 40,
-    title: 'グロウ（ツヤ）ベース',
-    description: '保湿系の艶下地とクッションファンデで、内側から発光するようなツヤ肌に。',
+    description: '艶下地とクッションファンデで、内側から発光するようなツヤ肌に。',
     tags: [{ technique_id: 't-glow-dewy', tag_type: 'style', tag_value: 'glow' }],
   },
 
-  // ---- パーソナルカラー別のポイントメイク ----
+  // ---- パーソナルカラー（4シーズン）別のポイントメイク ----
   {
-    id: 't-color-warm-cheek',
+    id: 't-color-spring',
     step_order: 60,
-    title: 'ウォームカラーのチーク・リップ',
-    description: 'コーラル〜テラコッタ系で血色感を足し、暖色の肌なじみを活かす。',
-    tags: [{ technique_id: 't-color-warm-cheek', tag_type: 'color', tag_value: 'warm' }],
+    description: 'コーラル〜ピーチ系で明るい血色感をプラスし、華やかさを引き出す。',
+    tags: [{ technique_id: 't-color-spring', tag_type: 'color', tag_value: 'spring' }],
   },
   {
-    id: 't-color-cool-cheek',
+    id: 't-color-summer',
     step_order: 60,
-    title: 'クールカラーのチーク・リップ',
-    description: 'ローズ〜プラム系で透明感を強調し、涼しげな印象に仕上げる。',
-    tags: [{ technique_id: 't-color-cool-cheek', tag_type: 'color', tag_value: 'cool' }],
+    description: 'ローズ〜ラベンダー系でソフトな透明感を出し、上品にまとめる。',
+    tags: [{ technique_id: 't-color-summer', tag_type: 'color', tag_value: 'summer' }],
+  },
+  {
+    id: 't-color-autumn',
+    step_order: 60,
+    description: 'テラコッタ〜ブラウン系で深みのある温かさを足し、こなれ感を出す。',
+    tags: [{ technique_id: 't-color-autumn', tag_type: 'color', tag_value: 'autumn' }],
+  },
+  {
+    id: 't-color-winter',
+    step_order: 60,
+    description: 'ビビッドピンク〜プラム系でくっきりした華やかさと透明感を強調する。',
+    tags: [{ technique_id: 't-color-winter', tag_type: 'color', tag_value: 'winter' }],
   },
 
   // ---- 系統別の仕上げ ----
   {
     id: 't-mode-brow',
     step_order: 80,
-    title: 'シャープな平行眉・アイライン',
-    description: '直線的な眉ときりっとしたアイラインでモードな抜け感を作る。',
+    description: '直線的な平行眉ときりっとしたアイラインでモードな抜け感をつくる。',
     tags: [{ technique_id: 't-mode-brow', tag_type: 'style', tag_value: 'mode' }],
   },
   {
     id: 't-clean-brow',
     step_order: 80,
-    title: 'ふんわりアーチ眉',
     description: '毛流れを活かしたアーチ眉で、やわらかく清潔感のある目もとに。',
     tags: [{ technique_id: 't-clean-brow', tag_type: 'style', tag_value: 'clean' }],
   },
   {
     id: 't-glow-highlight',
     step_order: 80,
-    title: 'ハイライトで立体ツヤ',
     description: '高い位置にハイライトを重ね、ツヤの立体感を強調する。',
     tags: [{ technique_id: 't-glow-highlight', tag_type: 'style', tag_value: 'glow' }],
   },
@@ -95,7 +97,6 @@ export const TECHNIQUES: MakeupTechnique[] = [
 // 補正処理で先頭に挿入する「高保湿スキンケア工程」
 export const CORRECTION_STEP = {
   id: 't-correction-hydration',
-  title: '【補正】高保湿スキンケア工程',
   description:
-    '選択された仕上がりが乾燥を招きやすいため、化粧下地の前に高保湿美容液・保湿クリームでしっかり水分と油分を補給する。',
+    '【補正】選択された仕上がりが乾燥を招きやすいため、化粧下地の前に高保湿美容液・保湿クリームで水分と油分をしっかり補給する。',
 }

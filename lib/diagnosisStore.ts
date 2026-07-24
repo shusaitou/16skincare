@@ -1,8 +1,9 @@
 import { create } from 'zustand'
 import type { ColorType, SkinType, StyleType } from './types'
 
-// 診断の設問と選択肢（フロントでリアルタイムにスコア集計）
-export type ScoreKey = SkinType | ColorType | StyleType
+// 診断で集計するスコアキー（= options のスコア列に対応）。
+// 系統(style)は診断せず、ユーザーが直接選ぶためここには含めない。
+export type ScoreKey = SkinType | ColorType
 
 export interface Option {
   id: string
@@ -13,10 +14,12 @@ export interface Option {
 export interface Question {
   id: string
   content: string
-  category: 'skin' | 'color' | 'style'
+  category: 'skin' | 'color' // questions.category の CHECK 制約に一致
   options: Option[]
 }
 
+// 診断設問（肌質×2 / カラー×2）。カラーは「黄み/青み」×「明るい/深い」の
+// 2軸で 4シーズンを判定する。
 export const QUESTIONS: Question[] = [
   {
     id: 'q1',
@@ -25,7 +28,6 @@ export const QUESTIONS: Question[] = [
     options: [
       { id: 'q1a', label: 'すぐにつっぱる・粉をふく', scores: { dry: 2 } },
       { id: 'q1b', label: 'しばらくするとTゾーンがテカる', scores: { oily: 2 } },
-      { id: 'q1c', label: '頬は乾くがTゾーンはテカる', scores: { combination: 2 } },
     ],
   },
   {
@@ -33,47 +35,42 @@ export const QUESTIONS: Question[] = [
     category: 'skin',
     content: '毛穴やテカリは気になりますか？',
     options: [
-      { id: 'q2a', label: 'ほとんど気にならない（むしろカサつく）', scores: { dry: 2 } },
+      { id: 'q2a', label: 'あまり気にならない（むしろカサつく）', scores: { dry: 2 } },
       { id: 'q2b', label: '全体的にテカりやすい', scores: { oily: 2 } },
-      { id: 'q2c', label: '部分的に気になる', scores: { combination: 2 } },
     ],
   },
   {
     id: 'q3',
     category: 'color',
-    content: '似合う・褒められるアクセサリーは？',
+    content: '肌なじみが良い・褒められるのは？',
     options: [
-      { id: 'q3a', label: 'ゴールド系', scores: { warm: 2 } },
-      { id: 'q3b', label: 'シルバー系', scores: { cool: 2 } },
+      {
+        id: 'q3a',
+        label: 'ゴールド系アクセ・暖色の服',
+        scores: { spring: 1, autumn: 1 },
+      },
+      {
+        id: 'q3b',
+        label: 'シルバー系アクセ・寒色の服',
+        scores: { summer: 1, winter: 1 },
+      },
     ],
   },
   {
     id: 'q4',
     category: 'color',
-    content: '肌なじみが良いと感じる服の色は？',
+    content: '似合う色の印象はどちらに近いですか？',
     options: [
-      { id: 'q4a', label: 'コーラル・キャメル・オレンジ系', scores: { warm: 2 } },
-      { id: 'q4b', label: 'ローズ・グレー・ネイビー系', scores: { cool: 2 } },
-    ],
-  },
-  {
-    id: 'q5',
-    category: 'style',
-    content: 'なりたいメイクの雰囲気は？',
-    options: [
-      { id: 'q5a', label: 'マットでシャープなモード系', scores: { mode: 2 } },
-      { id: 'q5b', label: '清潔感のあるナチュラル', scores: { clean: 2 } },
-      { id: 'q5c', label: '内側から発光するツヤ肌', scores: { glow: 2 } },
-    ],
-  },
-  {
-    id: 'q6',
-    category: 'style',
-    content: '仕上がりの質感の好みは？',
-    options: [
-      { id: 'q6a', label: 'さらっとマットで崩れにくい', scores: { mode: 2 } },
-      { id: 'q6b', label: '素肌っぽいセミマット', scores: { clean: 2 } },
-      { id: 'q6c', label: 'うるおいのあるツヤ', scores: { glow: 2 } },
+      {
+        id: 'q4a',
+        label: '明るくクリアな色（パステル・鮮やか）',
+        scores: { spring: 1, summer: 1 },
+      },
+      {
+        id: 'q4b',
+        label: '深く落ち着いた色（スモーキー・こっくり）',
+        scores: { autumn: 1, winter: 1 },
+      },
     ],
   },
 ]
@@ -82,16 +79,22 @@ interface DiagnosisState {
   index: number
   // question.id -> 選んだ option
   answers: Record<string, Option>
-  finished: boolean
+  // 設問（肌質・カラー）を最後まで回答したか
+  questionsDone: boolean
+  // ユーザーが直接選ぶ「なりたい系統」
+  style: StyleType | null
   select: (question: Question, option: Option) => void
+  setStyle: (style: StyleType) => void
   back: () => void
   reset: () => void
 }
 
+// 診断の完了 = 全設問回答済み かつ 系統を選択済み
 export const useDiagnosisStore = create<DiagnosisState>((set) => ({
   index: 0,
   answers: {},
-  finished: false,
+  questionsDone: false,
+  style: null,
   select: (question, option) =>
     set((s) => {
       const answers = { ...s.answers, [question.id]: option }
@@ -99,18 +102,20 @@ export const useDiagnosisStore = create<DiagnosisState>((set) => ({
       return {
         answers,
         index: isLast ? s.index : s.index + 1,
-        finished: isLast,
+        questionsDone: isLast,
       }
     }),
+  setStyle: (style) => set({ style }),
   back: () =>
-    set((s) => ({
-      index: Math.max(0, s.index - 1),
-      finished: false,
-    })),
-  reset: () => set({ index: 0, answers: {}, finished: false }),
+    set((s) => {
+      // 系統選択画面から戻る場合は最後の設問へ
+      if (s.questionsDone) return { questionsDone: false, style: null }
+      return { index: Math.max(0, s.index - 1) }
+    }),
+  reset: () => set({ index: 0, answers: {}, questionsDone: false, style: null }),
 }))
 
-// 回答からスコアを集計し、各軸のトップを診断結果として返す
+// 回答からスコアを集計し、各軸のトップを診断結果として返す（肌質・カラー）
 export function computeResult(answers: Record<string, Option>) {
   const totals: Partial<Record<ScoreKey, number>> = {}
   for (const opt of Object.values(answers)) {
@@ -125,9 +130,8 @@ export function computeResult(answers: Record<string, Option>) {
     return best
   }
   return {
-    skin: pick<SkinType>(['dry', 'oily', 'combination']),
-    color: pick<ColorType>(['warm', 'cool']),
-    style: pick<StyleType>(['mode', 'clean', 'glow']),
+    skin: pick<SkinType>(['dry', 'oily']),
+    color: pick<ColorType>(['spring', 'summer', 'autumn', 'winter']),
     totals,
   }
 }

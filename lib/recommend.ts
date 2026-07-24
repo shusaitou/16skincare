@@ -1,9 +1,11 @@
 import type {
+  ColorType,
   DiagnosisResult,
   MakeupTechnique,
   RecommendationResponse,
   RecommendedStep,
   SkinType,
+  StyleType,
   TagValue,
 } from './types'
 import { CORRECTION_STEP, TECHNIQUES } from './techniques'
@@ -13,8 +15,7 @@ import { CORRECTION_STEP, TECHNIQUES } from './techniques'
 //     さらに乾燥を促進するため矛盾する。
 const SKIN_CONFLICTS: Record<SkinType, TagValue[]> = {
   dry: ['dry'], // マット/乾燥前提の手法は乾燥肌に不向き
-  oily: [], // 現状の手法セットではオイリー肌の明確な矛盾は無し
-  combination: [],
+  oily: [], // 現状の手法セットでは脂性肌の明確な矛盾は無し
 }
 
 // データ取得層。Supabase 接続後はここを
@@ -70,7 +71,6 @@ export function buildRecommendation(
     .map((t) => ({
       id: t.id,
       step_order: t.step_order,
-      title: t.title,
       description: t.description,
       image_url: t.image_url,
     }))
@@ -80,7 +80,6 @@ export function buildRecommendation(
     steps.unshift({
       id: CORRECTION_STEP.id,
       step_order: 0,
-      title: CORRECTION_STEP.title,
       description: CORRECTION_STEP.description,
       isCorrection: true,
     })
@@ -98,11 +97,16 @@ export function buildRecommendation(
 
 // --- 表示用ラベル ---
 export function skinLabel(s: SkinType): string {
-  return { dry: '乾燥肌', oily: '脂性肌', combination: '混合肌' }[s]
+  return { dry: '乾燥肌', oily: '脂性肌' }[s]
 }
-export function colorLabel(c: DiagnosisResult['color']): string {
-  return { warm: 'ウォーム（イエベ）', cool: 'クール（ブルベ）' }[c]
+export function colorLabel(c: ColorType): string {
+  return {
+    spring: 'スプリング（イエベ春）',
+    summer: 'サマー（ブルベ夏）',
+    autumn: 'オータム（イエベ秋）',
+    winter: 'ウィンター（ブルベ冬）',
+  }[c]
 }
-export function styleLabel(s: DiagnosisResult['style']): string {
+export function styleLabel(s: StyleType): string {
   return { mode: 'モード系', clean: '清潔感重視', glow: 'ツヤ・グロウ系' }[s]
 }

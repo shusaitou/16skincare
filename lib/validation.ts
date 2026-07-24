@@ -1,7 +1,7 @@
 import type { ColorType, DiagnosisResult, SkinType, StyleType } from './types'
 
-const SKIN_VALUES: SkinType[] = ['dry', 'oily', 'combination']
-const COLOR_VALUES: ColorType[] = ['warm', 'cool']
+const SKIN_VALUES: SkinType[] = ['dry', 'oily']
+const COLOR_VALUES: ColorType[] = ['spring', 'summer', 'autumn', 'winter']
 const STYLE_VALUES: StyleType[] = ['mode', 'clean', 'glow']
 
 function isOneOf<T extends string>(v: unknown, allowed: T[]): v is T {

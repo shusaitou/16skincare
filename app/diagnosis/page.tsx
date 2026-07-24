@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import QuestionCard from '../../components/QuestionCard'
+import StyleSelect from '../../components/StyleSelect'
 import ResultView from '../../components/ResultView'
 import {
   QUESTIONS,
@@ -12,25 +13,33 @@ import {
 import { buildRecommendation } from '../../lib/recommend'
 import type { RecommendationResponse } from '../../lib/types'
 
-export default function DiagnosisPage() {
-  const { index, answers, finished, select, back, reset } = useDiagnosisStore()
+// 診断のフェーズ: 設問 → 系統選択 → 結果
+type Phase = 'questions' | 'style' | 'result'
 
+export default function DiagnosisPage() {
+  const { index, answers, questionsDone, style, select, setStyle, back, reset } =
+    useDiagnosisStore()
+
+  const phase: Phase = !questionsDone ? 'questions' : style === null ? 'style' : 'result'
   const current = QUESTIONS[index]
-  const progress = finished ? 100 : Math.round((index / QUESTIONS.length) * 100)
+
+  // 進捗: 設問 + 系統選択の合計ステップに対する割合
+  const totalSteps = QUESTIONS.length + 1
+  const doneSteps = questionsDone ? (style ? totalSteps : QUESTIONS.length) : index
+  const progress = Math.round((doneSteps / totalSteps) * 100)
 
   const [recommendation, setRecommendation] =
     useState<RecommendationResponse | null>(null)
   const [loading, setLoading] = useState(false)
 
-  // 診断完了時に API 経由で結果を保存＋手順を取得する。
-  // API が失敗しても、ローカルの buildRecommendation にフォールバックして動作を止めない。
+  // 系統まで揃ったら API 経由で保存＋手順取得。失敗時はローカル計算にフォールバック。
   useEffect(() => {
-    if (!finished) {
+    if (phase !== 'result') {
       setRecommendation(null)
       return
     }
-    const result = computeResult(answers)
-    const payload = { skin: result.skin, color: result.color, style: result.style }
+    const base = computeResult(answers)
+    const payload = { skin: base.skin, color: base.color, style: style! }
 
     let cancelled = false
     setLoading(true)
@@ -45,7 +54,6 @@ export default function DiagnosisPage() {
         const data: RecommendationResponse = await res.json()
         if (!cancelled) setRecommendation(data)
       } catch {
-        // フォールバック: フロント側で計算
         if (!cancelled) setRecommendation(buildRecommendation(payload))
       } finally {
         if (!cancelled) setLoading(false)
@@ -55,7 +63,7 @@ export default function DiagnosisPage() {
     return () => {
       cancelled = true
     }
-  }, [finished, answers])
+  }, [phase, answers, style])
 
   return (
     <div className="max-w-2xl mx-auto p-6">
@@ -74,7 +82,7 @@ export default function DiagnosisPage() {
       </div>
 
       <AnimatePresence mode="wait">
-        {!finished ? (
+        {phase === 'questions' && (
           <motion.div
             key={current.id}
             initial={{ opacity: 0, x: 40 }}
@@ -100,7 +108,26 @@ export default function DiagnosisPage() {
               </p>
             </div>
           </motion.div>
-        ) : (
+        )}
+
+        {phase === 'style' && (
+          <motion.div
+            key="style"
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -40 }}
+            transition={{ duration: 0.25 }}
+          >
+            <StyleSelect selected={style} onSelect={setStyle} />
+            <div className="mt-4">
+              <button onClick={back} className="text-sm text-gray-500">
+                ← 戻る
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {phase === 'result' && (
           <motion.div
             key="result"
             initial={{ opacity: 0, y: 20 }}
