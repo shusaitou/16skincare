@@ -35,25 +35,26 @@ describe('buildRecommendation — フィルタリング', () => {
   it('選択したカラー(季)以外の color 技法は含まれない', () => {
     const rec = buildRecommendation({ ...base, color: 'winter' })
     const ids = rec.steps.map((s) => s.id)
-    expect(ids).toContain('t-color-winter')
-    expect(ids).not.toContain('t-color-spring')
-    expect(ids).not.toContain('t-color-summer')
-    expect(ids).not.toContain('t-color-autumn')
+    expect(ids).toContain('t-cheek-winter')
+    expect(ids).toContain('t-eyeshadow-winter')
+    expect(ids).not.toContain('t-cheek-spring')
+    expect(ids).not.toContain('t-eyeshadow-summer')
   })
 
   it('選択した系統以外の style 技法は含まれない', () => {
     const rec = buildRecommendation({ ...base, style: 'glow' })
     const ids = rec.steps.map((s) => s.id)
-    expect(ids).toContain('t-glow-dewy')
-    expect(ids).not.toContain('t-mode-matte')
-    expect(ids).not.toContain('t-clean-natural')
+    expect(ids).toContain('t-primer-glow')
+    expect(ids).toContain('t-highlight')
+    expect(ids).not.toContain('t-primer-mode')
+    expect(ids).not.toContain('t-primer-clean')
   })
 
   it('タグ無しの共通ベース手法は常に含まれる', () => {
     const rec = buildRecommendation(base)
     const ids = rec.steps.map((s) => s.id)
-    expect(ids).toContain('t-base-cleanse')
-    expect(ids).toContain('t-base-lotion')
+    expect(ids).toContain('t-cleanse')
+    expect(ids).toContain('t-lotion')
   })
 
   it('手順は step_order 昇順（補正は先頭）に並ぶ', () => {
@@ -81,14 +82,14 @@ describe('buildRecommendation — 性別の出し分け', () => {
     const ids = rec.steps.map((s) => s.id)
     expect(ids).toContain('t-men-aftershave')
     expect(ids).toContain('t-men-brow')
-    expect(ids).not.toContain('t-color-spring') // women 限定
-    expect(ids).not.toContain('t-clean-brow') // women 限定
+    expect(ids).not.toContain('t-cheek-spring') // women 限定
+    expect(ids).not.toContain('t-brow-clean') // women 限定
   })
 
   it('レディースはレディース手法を含み、メンズ専用は含まない', () => {
     const rec = buildRecommendation({ ...base, gender: 'women' })
     const ids = rec.steps.map((s) => s.id)
-    expect(ids).toContain('t-color-spring')
+    expect(ids).toContain('t-cheek-spring')
     expect(ids).not.toContain('t-men-aftershave')
     expect(ids).not.toContain('t-men-brow')
   })
@@ -96,17 +97,23 @@ describe('buildRecommendation — 性別の出し分け', () => {
   it('unisex のベース手法は男女どちらにも含まれる', () => {
     const men = buildRecommendation({ ...base, gender: 'men' }).steps.map((s) => s.id)
     const women = buildRecommendation({ ...base, gender: 'women' }).steps.map((s) => s.id)
-    for (const id of ['t-base-cleanse', 't-base-lotion']) {
+    for (const id of ['t-cleanse', 't-lotion']) {
       expect(men).toContain(id)
       expect(women).toContain(id)
     }
+  })
+
+  it('レディースのフルメイクは十分な工程数になる', () => {
+    const rec = buildRecommendation({ ...base, gender: 'women' })
+    // スキンケア＋ベース＋ポイントメイクで概ね10工程以上
+    expect(rec.steps.length).toBeGreaterThanOrEqual(10)
   })
 })
 
 describe('buildRecommendation — 成分・製品の受け渡し', () => {
   it('各ステップに成分・製品が含まれうる（洗顔ステップで確認）', () => {
     const rec = buildRecommendation(base)
-    const cleanse = rec.steps.find((s) => s.id === 't-base-cleanse')!
+    const cleanse = rec.steps.find((s) => s.id === 't-cleanse')!
     expect(cleanse.ingredients && cleanse.ingredients.length).toBeGreaterThan(0)
     expect(cleanse.products && cleanse.products.length).toBeGreaterThan(0)
   })
