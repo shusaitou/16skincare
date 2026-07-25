@@ -18,59 +18,85 @@ export interface Question {
   options: Option[]
 }
 
-// 診断設問（肌質×2 / カラー×2）。カラーは「黄み/青み」×「明るい/深い」の
-// 2軸で 4シーズンを判定する。
+// 診断設問（肌質×4 / カラー×4）。各軸を複数問で聞き、平均的な傾向で判定して
+// 1問依存による偏りを減らす（信頼性の担保）。
+// カラーは「好み」ではなく身体的特徴で判定する:
+//   - アンダートーン（暖/涼）: 血管の色・日焼け反応 → warm=spring+autumn / cool=summer+winter
+//   - 明度/クリアさ（明/深）: 瞳の色・顔立ちや地毛 → light=spring+summer / deep=autumn+winter
 export const QUESTIONS: Question[] = [
+  // ---- 肌質（dry / oily）を4問で ----
   {
     id: 'q1',
     category: 'skin',
-    content: '洗顔後、何もつけないと肌はどうなりますか？',
+    content: '洗顔後、何もつけずにいると肌はどうなりますか？',
     options: [
-      { id: 'q1a', label: 'すぐにつっぱる・粉をふく', scores: { dry: 2 } },
-      { id: 'q1b', label: 'しばらくするとTゾーンがテカる', scores: { oily: 2 } },
+      { id: 'q1a', label: 'つっぱって乾く・粉をふく', scores: { dry: 2 } },
+      { id: 'q1b', label: 'しばらくするとT ゾーンがテカる', scores: { oily: 2 } },
     ],
   },
   {
     id: 'q2',
     category: 'skin',
-    content: '毛穴やテカリは気になりますか？',
+    content: '昼過ぎ、肌やメイクの状態は？',
     options: [
-      { id: 'q2a', label: 'あまり気にならない（むしろカサつく）', scores: { dry: 2 } },
-      { id: 'q2b', label: '全体的にテカりやすい', scores: { oily: 2 } },
+      { id: 'q2a', label: '乾燥して粉っぽく、小じわが気になる', scores: { dry: 2 } },
+      { id: 'q2b', label: '皮脂でテカり、メイクが崩れる', scores: { oily: 2 } },
     ],
   },
   {
     id: 'q3',
-    category: 'color',
-    content: '肌なじみが良い・褒められるのは？',
+    category: 'skin',
+    content: '毛穴の状態は？',
     options: [
-      {
-        id: 'q3a',
-        label: 'ゴールド系アクセ・暖色の服',
-        scores: { spring: 1, autumn: 1 },
-      },
-      {
-        id: 'q3b',
-        label: 'シルバー系アクセ・寒色の服',
-        scores: { summer: 1, winter: 1 },
-      },
+      { id: 'q3a', label: 'あまり目立たない（キメは細かめ）', scores: { dry: 2 } },
+      { id: 'q3b', label: '開き・黒ずみ・詰まりが気になる', scores: { oily: 2 } },
     ],
   },
   {
     id: 'q4',
-    category: 'color',
-    content: '似合う色の印象はどちらに近いですか？',
+    category: 'skin',
+    content: '起きやすい肌トラブルは？',
     options: [
-      {
-        id: 'q4a',
-        label: '明るくクリアな色（パステル・鮮やか）',
-        scores: { spring: 1, summer: 1 },
-      },
-      {
-        id: 'q4b',
-        label: '深く落ち着いた色（スモーキー・こっくり）',
-        scores: { autumn: 1, winter: 1 },
-      },
+      { id: 'q4a', label: '乾燥・つっぱり・かゆみ', scores: { dry: 2 } },
+      { id: 'q4b', label: 'ニキビ・吹き出物・べたつき', scores: { oily: 2 } },
+    ],
+  },
+
+  // ---- パーソナルカラー（4シーズン）を身体的特徴4問で ----
+  {
+    id: 'q5',
+    category: 'color',
+    content: '手首の内側の血管は、何色に見えますか？',
+    options: [
+      { id: 'q5a', label: '緑っぽい', scores: { spring: 1, autumn: 1 } }, // warm
+      { id: 'q5b', label: '青・紫っぽい', scores: { summer: 1, winter: 1 } }, // cool
+    ],
+  },
+  {
+    id: 'q6',
+    category: 'color',
+    content: '日焼けをすると、肌はどうなりますか？',
+    options: [
+      { id: 'q6a', label: '赤くなりにくく、小麦色に焼ける', scores: { spring: 1, autumn: 1 } }, // warm
+      { id: 'q6b', label: 'まず赤くヒリヒリし、焼けにくい', scores: { summer: 1, winter: 1 } }, // cool
+    ],
+  },
+  {
+    id: 'q7',
+    category: 'color',
+    content: '黒目（瞳）の色と印象は？',
+    options: [
+      { id: 'q7a', label: '明るめのブラウンで、やわらかい印象', scores: { spring: 1, summer: 1 } }, // light
+      { id: 'q7b', label: '深いブラウン〜黒で、くっきりした印象', scores: { autumn: 1, winter: 1 } }, // deep
+    ],
+  },
+  {
+    id: 'q8',
+    category: 'color',
+    content: '顔立ちや地毛の印象に近いのは？',
+    options: [
+      { id: 'q8a', label: 'ソフトで親しみやすい／髪は明るめ・柔らかい', scores: { spring: 1, summer: 1 } }, // light
+      { id: 'q8b', label: '華やかでくっきり／髪は黒くしっかり', scores: { autumn: 1, winter: 1 } }, // deep
     ],
   },
 ]
