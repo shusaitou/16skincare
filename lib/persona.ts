@@ -1,102 +1,108 @@
 import type { ColorType, DiagnosisResult, SkinType } from './types'
 
 // 診断タイプ（アイデンティティ）。
-// コア8アーキタイプ = 肌質(2) × パーソナルカラー(4)。
-// これに性別(メンズ/レディース)のトーン差を掛け、全16パターンとして提示する。
+// 16タイプ = パーソナルカラー(4) × 肌質(4)。
+// カラーが「印象・色の個性」、肌質が「質感・スキンケアの方向性」を担い、
+// 両者を合成して型名・説明を生成する（16通りを一意に網羅）。
 export interface Persona {
-  code: string // 例: "GRM" — MBTI風の短いコード
+  code: string // 例: "AUD" — MBTI風の短いコード（季 + 肌質）
   name: string // 型名
   keyword: string // 一言キャッチ
-  description: string // 2〜3文の説明
+  description: string // 説明
   strengths: string[] // 強み
   caution: string // 気をつけたい点
 }
 
-type Key = `${SkinType}-${ColorType}`
-
-const PERSONAS: Record<Key, Persona> = {
-  'dry-spring': {
-    code: 'BLM',
-    name: 'ブルーミング・モイスト',
-    keyword: '咲きたてのような、みずみずしい親しみやすさ',
-    description:
-      '潤いを抱えた肌に、明るく暖かなスプリングカラーが映えるタイプ。血色感とツヤで、誰からも好かれるフレッシュな印象をつくれます。',
-    strengths: ['ツヤ肌が似合う', '明るい発色が肌になじむ', '親しみやすい血色感'],
-    caution: '乾燥が透けやすいので、保湿を土台にしてから発色を足すと◎',
+// カラー（季節）= 色の個性
+const SEASON_INFO: Record<
+  ColorType,
+  { adj: string; code: string; keyword: string; identity: string; colorVibe: string; strength: string }
+> = {
+  spring: {
+    adj: 'ブルーミング',
+    code: 'SP',
+    keyword: '明るく親しみやすい、咲きたての華やかさ',
+    identity: '明るく暖かなスプリングカラーが映える',
+    colorVibe: 'クリアで明るい暖色',
+    strength: '明るい発色が肌になじむ',
   },
-  'dry-summer': {
-    code: 'ELM',
-    name: 'エレガント・モイスト',
-    keyword: '柔らかな透明感をまとう、穏やかな品',
-    description:
-      '潤い肌に、涼しげでソフトなサマーカラーが調和するタイプ。強すぎない上品さと透明感が最大の武器です。',
-    strengths: ['ソフトな透明感', 'くすみ色が上品にきまる', '肌のなめらかさが際立つ'],
-    caution: '濃すぎる色は浮きやすい。ヌケ感のあるトーンで軽やかに',
+  summer: {
+    adj: 'エレガント',
+    code: 'SU',
+    keyword: '涼やかで上品な、やわらかい透明感',
+    identity: '涼しげでソフトなサマーカラーが調和する',
+    colorVibe: 'ソフトで涼しげなくすみ色',
+    strength: 'ソフトな透明感が際立つ',
   },
-  'dry-autumn': {
-    code: 'GRM',
-    name: 'グレイス・モイスト',
-    keyword: '深みと温もりの、落ち着いた大人の余裕',
-    description:
-      '潤い肌に、深く温かなオータムカラーが溶け込むタイプ。こっくりした色を品よく着こなせる、余裕のある印象を持ちます。',
-    strengths: ['深みのある色が似合う', '温かみのあるツヤ肌', 'こなれた大人っぽさ'],
-    caution: '乾燥するとくすんで見えがち。ツヤの保湿ベースで血色をキープ',
+  autumn: {
+    adj: 'グレイス',
+    code: 'AU',
+    keyword: '深みと温もりのある、大人の余裕',
+    identity: '深く温かなオータムカラーが溶け込む',
+    colorVibe: '深く落ち着いた暖色',
+    strength: '深みのある色を品よく着こなせる',
   },
-  'dry-winter': {
-    code: 'CLM',
-    name: 'クリア・モイスト',
-    keyword: '凛とした、澄みわたる透明感',
-    description:
-      '潤い肌に、くっきり澄んだウィンターカラーが冴えるタイプ。シャープな色をまとっても、しっとり感で柔らかさが残ります。',
-    strengths: ['くっきりした色が映える', '凛とした透明感', 'コントラストが似合う'],
-    caution: 'マット過ぎると乾燥が目立つ。適度なツヤで硬さを和らげて',
-  },
-  'oily-spring': {
-    code: 'FRP',
-    name: 'フレッシュ・ポップ',
-    keyword: 'ヘルシーで元気な、弾けるような明るさ',
-    description:
-      '皮脂の力でハリのある肌に、明るいスプリングカラーが弾けるタイプ。元気でヘルシーな印象を軽やかにつくれます。',
-    strengths: ['ヘルシーなツヤ感', '鮮やかな発色が得意', '崩れにくい肌'],
-    caution: 'テカリと発色が重なると重い印象に。ベースは軽くマットに寄せて',
-  },
-  'oily-summer': {
-    code: 'CLA',
-    name: 'クール・エアリー',
-    keyword: 'さらりと爽やか、風通しのよい涼感',
-    description:
-      '皮脂で潤う肌に、涼しげなサマーカラーが軽やかに合うタイプ。さっぱりと清潔感のある爽やかさが持ち味です。',
-    strengths: ['爽やかな清潔感', 'さらっとした質感', 'くすみ色が上品'],
-    caution: '皮脂でにじみやすい。セミマットのベースで軽さをキープ',
-  },
-  'oily-autumn': {
-    code: 'URA',
-    name: 'アーバン・アース',
-    keyword: 'こなれた、都会的なアースモード',
-    description:
-      '皮脂の力とハリに、深いオータムカラーが効くタイプ。マットな質感と深い色で、都会的でこなれた雰囲気をまとえます。',
-    strengths: ['マットな質感が似合う', '深い色でこなれ感', '崩れにくいベース'],
-    caution: 'テカリが出ると色がくすむ。皮脂対策ベースを土台に',
-  },
-  'oily-winter': {
-    code: 'SHM',
-    name: 'シャープ・モード',
-    keyword: 'クールでエッジの効いた、モードな存在感',
-    description:
-      '皮脂でハリのある肌に、くっきりしたウィンターカラーが冴えるタイプ。シャープでモードな存在感を最も表現しやすいタイプです。',
-    strengths: ['モードな存在感', 'コントラストが映える', 'マット肌が得意'],
-    caution: '皮脂×マットで硬くなりがち。要所にツヤを残して抜け感を',
+  winter: {
+    adj: 'クリア',
+    code: 'WI',
+    keyword: '凛と澄んだ、くっきりした存在感',
+    identity: 'くっきり澄んだウィンターカラーが冴える',
+    colorVibe: 'コントラストの効いた鮮明な色',
+    strength: 'はっきりした色・コントラストが映える',
   },
 }
 
-// 性別ごとのトーン（同じアーキタイプでも見せ方を変える一言）
+// 肌質 = 質感・スキンケアの方向性
+const SKIN_INFO: Record<
+  SkinType,
+  { noun: string; code: string; emphasis: string; strength: string; caution: string }
+> = {
+  dry: {
+    noun: 'モイスト',
+    code: 'D',
+    emphasis: 'うるおいを抱えたしっとり肌',
+    strength: 'ツヤ肌が似合う',
+    caution: '乾燥が透けやすいので、まず保湿を土台にしてから発色を足すと◎',
+  },
+  oily: {
+    noun: 'フレッシュ',
+    code: 'O',
+    emphasis: '皮脂でハリのあるヘルシー肌',
+    strength: '崩れにくくマットな質感が得意',
+    caution: 'テカリが出やすいので、皮脂対策ベースと部分パウダーで軽さをキープ',
+  },
+  combination: {
+    noun: 'ミックス',
+    code: 'C',
+    emphasis: 'T ゾーンと頬で質感が異なる混合肌',
+    strength: '部分ごとにメイクを使い分けられる',
+    caution: 'T ゾーンはさらっと、頬は保湿重視で、部分ごとに下地を調整して',
+  },
+  normal: {
+    noun: 'ピュア',
+    code: 'N',
+    emphasis: '水分と皮脂のバランスが良い安定肌',
+    strength: 'どんな質感も似合いやすい',
+    caution: '不満が出にくいぶん、季節で保湿と皮脂バランスを微調整すると◎',
+  },
+}
+
 const GENDER_TAGLINE: Record<DiagnosisResult['gender'], string> = {
   men: '清潔感と抜け感を軸に、足しすぎない引き算で。',
   women: '血色とツヤを効かせて、印象を自在にコントロール。',
 }
 
 export function resolvePersona(result: DiagnosisResult): Persona {
-  return PERSONAS[`${result.skin}-${result.color}` as Key]
+  const season = SEASON_INFO[result.color]
+  const skin = SKIN_INFO[result.skin]
+  return {
+    code: `${season.code}${skin.code}`,
+    name: `${season.adj}・${skin.noun}`,
+    keyword: season.keyword,
+    description: `${season.identity}タイプ。${skin.emphasis}に、${season.colorVibe}が映えるのが魅力です。`,
+    strengths: [season.strength, skin.strength],
+    caution: skin.caution,
+  }
 }
 
 export function genderTagline(result: DiagnosisResult): string {

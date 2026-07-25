@@ -15,7 +15,9 @@ import { CORRECTION_STEP, TECHNIQUES } from './techniques'
 //     さらに乾燥を促進するため矛盾する。
 const SKIN_CONFLICTS: Record<SkinType, TagValue[]> = {
   dry: ['dry'], // マット/乾燥前提の手法は乾燥肌に不向き
-  oily: [], // 現状の手法セットでは脂性肌の明確な矛盾は無し
+  combination: ['dry'], // 混合肌も乾燥ゾーンがあるため補正対象
+  oily: [], // 脂性肌は乾燥系の矛盾なし
+  normal: [], // 普通肌は矛盾なし
 }
 
 // データ取得層。Supabase 接続後はここを
@@ -106,7 +108,7 @@ export function genderLabel(g: DiagnosisResult['gender']): string {
   return { men: 'メンズ', women: 'レディース' }[g]
 }
 export function skinLabel(s: SkinType): string {
-  return { dry: '乾燥肌', oily: '脂性肌' }[s]
+  return { dry: '乾燥肌', oily: '脂性肌', combination: '混合肌', normal: '普通肌' }[s]
 }
 export function colorLabel(c: ColorType): string {
   return {

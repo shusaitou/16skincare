@@ -21,8 +21,13 @@ describe('parseDiagnosisInput', () => {
     expect(parseDiagnosisInput({ ...valid, gender: 'other' }).ok).toBe(false)
   })
 
+  it('混合肌・普通肌も受理する', () => {
+    expect(parseDiagnosisInput({ ...valid, skin: 'combination' }).ok).toBe(true)
+    expect(parseDiagnosisInput({ ...valid, skin: 'normal' }).ok).toBe(true)
+  })
+
   it('不正な skin を弾く', () => {
-    expect(parseDiagnosisInput({ ...valid, skin: 'combination' }).ok).toBe(false)
+    expect(parseDiagnosisInput({ ...valid, skin: 'sensitive' }).ok).toBe(false)
   })
 
   it('旧タクソノミー(warm/cool)の color を弾く', () => {

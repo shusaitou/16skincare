@@ -1,7 +1,7 @@
 import type { ColorType, DiagnosisResult, Gender, SkinType, StyleType } from './types'
 
 const GENDER_VALUES: Gender[] = ['men', 'women']
-const SKIN_VALUES: SkinType[] = ['dry', 'oily']
+const SKIN_VALUES: SkinType[] = ['dry', 'oily', 'combination', 'normal']
 const COLOR_VALUES: ColorType[] = ['spring', 'summer', 'autumn', 'winter']
 const STYLE_VALUES: StyleType[] = ['mode', 'clean', 'glow']
 

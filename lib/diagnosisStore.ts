@@ -24,14 +24,16 @@ export interface Question {
 //   - アンダートーン（暖/涼）: 血管の色・日焼け反応 → warm=spring+autumn / cool=summer+winter
 //   - 明度/クリアさ（明/深）: 瞳の色・顔立ちや地毛 → light=spring+summer / deep=autumn+winter
 export const QUESTIONS: Question[] = [
-  // ---- 肌質（dry / oily）を4問で ----
+  // ---- 肌質（dry / oily / combination / normal）を4問で ----
   {
     id: 'q1',
     category: 'skin',
     content: '洗顔後、何もつけずにいると肌はどうなりますか？',
     options: [
       { id: 'q1a', label: 'つっぱって乾く・粉をふく', scores: { dry: 2 } },
-      { id: 'q1b', label: 'しばらくするとT ゾーンがテカる', scores: { oily: 2 } },
+      { id: 'q1b', label: 'T ゾーンも頬もすぐテカる', scores: { oily: 2 } },
+      { id: 'q1c', label: '頬は乾くのに T ゾーンはテカる', scores: { combination: 2 } },
+      { id: 'q1d', label: '特に気にならず快適', scores: { normal: 2 } },
     ],
   },
   {
@@ -40,7 +42,9 @@ export const QUESTIONS: Question[] = [
     content: '昼過ぎ、肌やメイクの状態は？',
     options: [
       { id: 'q2a', label: '乾燥して粉っぽく、小じわが気になる', scores: { dry: 2 } },
-      { id: 'q2b', label: '皮脂でテカり、メイクが崩れる', scores: { oily: 2 } },
+      { id: 'q2b', label: '全体に皮脂でテカり、崩れる', scores: { oily: 2 } },
+      { id: 'q2c', label: 'T ゾーンだけテカり、頬は乾く', scores: { combination: 2 } },
+      { id: 'q2d', label: 'ほぼ変化なく安定している', scores: { normal: 2 } },
     ],
   },
   {
@@ -48,8 +52,10 @@ export const QUESTIONS: Question[] = [
     category: 'skin',
     content: '毛穴の状態は？',
     options: [
-      { id: 'q3a', label: 'あまり目立たない（キメは細かめ）', scores: { dry: 2 } },
-      { id: 'q3b', label: '開き・黒ずみ・詰まりが気になる', scores: { oily: 2 } },
+      { id: 'q3a', label: '乾燥でキメが乱れがち', scores: { dry: 2 } },
+      { id: 'q3b', label: '開き・黒ずみ・詰まりが全体に', scores: { oily: 2 } },
+      { id: 'q3c', label: 'T ゾーンだけ目立つ', scores: { combination: 2 } },
+      { id: 'q3d', label: '目立たず良好', scores: { normal: 2 } },
     ],
   },
   {
@@ -59,6 +65,8 @@ export const QUESTIONS: Question[] = [
     options: [
       { id: 'q4a', label: '乾燥・つっぱり・かゆみ', scores: { dry: 2 } },
       { id: 'q4b', label: 'ニキビ・吹き出物・べたつき', scores: { oily: 2 } },
+      { id: 'q4c', label: '部分的な乾燥とテカリの両方', scores: { combination: 2 } },
+      { id: 'q4d', label: '大きなトラブルは少ない', scores: { normal: 2 } },
     ],
   },
 
@@ -164,7 +172,7 @@ export function computeResult(answers: Record<string, Option>) {
     return best
   }
   return {
-    skin: pick<SkinType>(['dry', 'oily']),
+    skin: pick<SkinType>(['dry', 'oily', 'combination', 'normal']),
     color: pick<ColorType>(['spring', 'summer', 'autumn', 'winter']),
     totals,
   }

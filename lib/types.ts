@@ -8,7 +8,7 @@
 // ※ gender / ingredients / products は現行DBスキーマに未定義。
 //   DB化する際は makeup_techniques への gender 列追加＋技法-成分/製品の子テーブルが必要。
 
-export type SkinType = 'dry' | 'oily'
+export type SkinType = 'dry' | 'oily' | 'combination' | 'normal'
 export type ColorType = 'spring' | 'summer' | 'autumn' | 'winter'
 export type StyleType = 'mode' | 'clean' | 'glow'
 

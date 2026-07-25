@@ -29,6 +29,16 @@ describe('buildRecommendation — 補正処理', () => {
     const rec = buildRecommendation({ ...base, skin: 'dry', style: 'clean' })
     expect(rec.steps.some((s) => s.isCorrection)).toBe(false)
   })
+
+  it('混合肌 × モード系も乾燥ゾーンがあるため補正する', () => {
+    const rec = buildRecommendation({ ...base, skin: 'combination', style: 'mode' })
+    expect(rec.steps[0].isCorrection).toBe(true)
+  })
+
+  it('普通肌はどの系統でも補正しない', () => {
+    const rec = buildRecommendation({ ...base, skin: 'normal', style: 'mode' })
+    expect(rec.steps.some((s) => s.isCorrection)).toBe(false)
+  })
 })
 
 describe('buildRecommendation — フィルタリング', () => {

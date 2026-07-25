@@ -3,21 +3,24 @@ import { resolvePersona, genderTagline } from '../lib/persona'
 import { getPalette } from '../lib/palette'
 import type { ColorType, DiagnosisResult, SkinType } from '../lib/types'
 
-const SKINS: SkinType[] = ['dry', 'oily']
+const SKINS: SkinType[] = ['dry', 'oily', 'combination', 'normal']
 const COLORS: ColorType[] = ['spring', 'summer', 'autumn', 'winter']
 
-describe('resolvePersona — 8アーキタイプ', () => {
-  it('肌質×カラーの全8組合せに一意のタイプが割り当たる', () => {
+describe('resolvePersona — 16タイプ', () => {
+  it('肌質×カラーの全16組合せに一意のタイプが割り当たる', () => {
     const codes = new Set<string>()
+    const names = new Set<string>()
     for (const skin of SKINS) {
       for (const color of COLORS) {
         const p = resolvePersona({ gender: 'women', skin, color, style: 'clean' })
         expect(p.name).toBeTruthy()
         expect(p.strengths.length).toBeGreaterThan(0)
         codes.add(p.code)
+        names.add(p.name)
       }
     }
-    expect(codes.size).toBe(8) // コードは全て異なる
+    expect(codes.size).toBe(16) // コードは全て異なる
+    expect(names.size).toBe(16) // 型名も全て異なる
   })
 
   it('性別でタグラインが変わる（=メンズ/レディースで16パターン）', () => {

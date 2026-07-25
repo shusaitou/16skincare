@@ -19,6 +19,8 @@ export default function ScoreChart({ totals, result }: Props) {
   const skinRows: { key: SkinType; label: string }[] = [
     { key: 'dry', label: skinLabel('dry') },
     { key: 'oily', label: skinLabel('oily') },
+    { key: 'combination', label: skinLabel('combination') },
+    { key: 'normal', label: skinLabel('normal') },
   ]
   const colorRows: { key: ColorType; label: string }[] = [
     { key: 'spring', label: colorLabel('spring') },

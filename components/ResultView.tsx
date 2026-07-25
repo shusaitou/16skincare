@@ -9,6 +9,7 @@ import { PRODUCT_DISCLAIMER } from '../lib/techniques'
 import PersonaCard from './PersonaCard'
 import ScoreChart from './ScoreChart'
 import ColorPalette from './ColorPalette'
+import MuseCard from './MuseCard'
 import ShareCard from './ShareCard'
 
 type Props = {
@@ -32,7 +33,10 @@ export default function ResultView({ recommendation, totals, onReset }: Props) {
       {/* 3. カラーパレット */}
       <ColorPalette color={result.color} />
 
-      {/* 4. 補正が入った場合の説明 */}
+      {/* 4. 参考にしたいメイク（ミューズ） */}
+      <MuseCard result={result} />
+
+      {/* 5. 補正が入った場合の説明 */}
       {correctionReason && (
         <motion.div
           initial={{ opacity: 0 }}
