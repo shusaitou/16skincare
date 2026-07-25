@@ -1,17 +1,19 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import GenderSelect from '../../components/GenderSelect'
 import QuestionCard from '../../components/QuestionCard'
 import StyleSelect from '../../components/StyleSelect'
 import ResultView from '../../components/ResultView'
+import { useAuth } from '../../components/AuthProvider'
 import {
   QUESTIONS,
   computeResult,
   useDiagnosisStore,
 } from '../../lib/diagnosisStore'
 import { buildRecommendation } from '../../lib/recommend'
+import { saveHistory } from '../../lib/historyRepository'
 import type { RecommendationResponse } from '../../lib/types'
 
 // 診断のフェーズ: 性別 → 設問 → 系統選択 → 結果
@@ -47,9 +49,14 @@ export default function DiagnosisPage() {
     gender === null ? 0 : questionsDone ? (style ? totalSteps : 1 + QUESTIONS.length) : 1 + index
   const progress = Math.round((doneSteps / totalSteps) * 100)
 
+  const { user, loading: authLoading } = useAuth()
+
   const [recommendation, setRecommendation] =
     useState<RecommendationResponse | null>(null)
   const [loading, setLoading] = useState(false)
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  // 同じ診断結果を再レンダリングのたびに保存しないための番人
+  const savedSignature = useRef<string | null>(null)
 
   // 全て揃ったら API 経由で保存＋手順取得。失敗時はローカル計算にフォールバック。
   useEffect(() => {
@@ -83,6 +90,39 @@ export default function DiagnosisPage() {
       cancelled = true
     }
   }, [phase, answers, style, gender])
+
+  // 結果が確定したら診断履歴に保存する。
+  // ログイン中はアカウントへ、未ログインならこの端末へ（ログイン時に引き継がれる）。
+  // 認証状態の確定を待つのは、確定前に保存するとローカル側に入ってしまうため。
+  useEffect(() => {
+    if (phase !== 'result' || !recommendation || authLoading) return
+
+    const { gender: g, skin, color, style: s } = recommendation.result
+    const signature = `${g}:${skin}:${color}:${s}`
+    if (savedSignature.current === signature) return
+    savedSignature.current = signature
+
+    setSaveState('saving')
+    saveHistory(user?.id ?? null, {
+      result: recommendation.result,
+      totals: computeResult(answers).totals as Record<string, number>,
+      steps: recommendation.steps,
+      correctionReason: recommendation.correctionReason,
+    })
+      .then(() => setSaveState('saved'))
+      .catch((e: Error) => {
+        console.warn('診断履歴の保存に失敗しました', e)
+        savedSignature.current = null // 次の機会に再試行できるようにする
+        setSaveState('error')
+      })
+  }, [phase, recommendation, authLoading, user, answers])
+
+  // 「もう一度診断する」— 同じ結果でも新しい履歴として残せるよう番人をリセット
+  function handleReset() {
+    savedSignature.current = null
+    setSaveState('idle')
+    reset()
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-12">
@@ -181,7 +221,8 @@ export default function DiagnosisPage() {
               <ResultView
                 recommendation={recommendation}
                 totals={computeResult(answers).totals}
-                onReset={reset}
+                onReset={handleReset}
+                saveState={saveState}
               />
             )}
           </motion.div>

@@ -76,3 +76,36 @@ export interface RecommendationResponse {
   // どの矛盾を検出し補正したかの説明（UI表示 / デバッグ用）
   correctionReason?: string
 }
+
+// --- アカウント機能（診断履歴 / お気に入り / ルーティン記録） -----------------
+// ログイン中は Supabase、未ログイン時は localStorage に保存する（同じ型で扱う）。
+
+// 診断履歴1件（= diagnosis_history テーブル1行）。
+// steps は「その時に提案された手順」のスナップショット。
+export interface DiagnosisHistoryEntry {
+  id: string
+  created_at: string // ISO8601
+  result: DiagnosisResult
+  totals: Record<string, number>
+  steps: RecommendedStep[]
+  correctionReason?: string
+}
+
+// お気に入りの対象種別（手順 / 製品）
+export type FavoriteType = 'step' | 'product'
+
+// お気に入り1件（= favorites テーブル1行）。
+// label / sublabel は表示用スナップショットなので、一覧表示に再計算が要らない。
+export interface FavoriteItem {
+  type: FavoriteType
+  key: string // 手順: technique_id / 製品: "brand::name"
+  label: string
+  sublabel?: string
+  created_at: string // ISO8601
+}
+
+// ある1日のルーティン実施記録（date はローカル日付 'YYYY-MM-DD'）
+export interface RoutineLog {
+  date: string
+  stepIds: string[]
+}
