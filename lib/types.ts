@@ -23,6 +23,42 @@ export type TagType = 'skin' | 'color' | 'style'
 // technique_tags.tag_value（tag_type ごとに取りうる値）
 export type TagValue = SkinType | ColorType | StyleType
 
+// --- 塗り方ガイド（インタラクティブ手順カード用） -----------------------------
+// 「顔のどこに・どのくらいの量・どの方向に」を図で示すためのデータ。
+// 顔の部位。FaceMap.tsx の SVG 上の領域定義と1対1で対応する。
+export type FaceArea =
+  | 'face' // 顔全体
+  | 'forehead' // 額
+  | 'tzone' // T ゾーン（額＋鼻筋）
+  | 'cheeks' // 頬
+  | 'cheeks-high' // 頬の高い位置（頬骨）
+  | 'under-eye' // 目の下
+  | 'eyelid' // まぶた
+  | 'lashes' // まつ毛のキワ
+  | 'brows' // 眉
+  | 'lips' // 唇
+  | 'nose-bridge' // 鼻筋
+  | 'jawline' // フェイスライン
+  | 'chin' // あご
+
+// 手の動かし方。矢印の向き（内側/外側など）の描画に使う。
+export type ApplyMotion =
+  | 'outward' // 内側から外側へ
+  | 'inward' // 外側から内側へ
+  | 'upward' // 斜め上へ引き上げる
+  | 'downward' // 下方向へ
+  | 'press' // 広げず、押さえる／のせる
+
+// 1手順ぶんの塗り方ガイド（= 将来の technique_guides テーブル1行を想定）
+export interface StepGuide {
+  area: FaceArea
+  motion: ApplyMotion
+  amount?: string // 使う量（例: パール大）
+  direction?: string // 動かし方の説明（例: 中心から外側へ）
+  tip?: string // 初心者向けのコツ
+  caution?: string // やりがちな失敗
+}
+
 // 手法に対する適性・系統タグ（= technique_tags テーブル1行）
 export interface TechniqueTag {
   technique_id: string
@@ -46,8 +82,15 @@ export interface MakeupTechnique {
   gender: TechniqueGender // 対象性別（unisex は全員）
   ingredients?: string[] // 注目すべき成分
   products?: Product[] // 代表製品の例
+  // 「時短・ミニマムメイク」に含める性別。
+  // 性別ごとに指定するのは、同じ手法でも最低限に入るかが変わるため
+  // （例: 化粧下地は女性の3ステップに入るが、男性は BB が兼ねる）。
+  minimalFor?: Gender[]
   tags: TechniqueTag[]
 }
+
+// 手順の表示モード。full = フルルーティン / minimal = 3ステップの最低限メイク
+export type RoutineMode = 'full' | 'minimal'
 
 // 診断結果（性別＋適性(肌質・カラー)＋嗜好(なりたい系統)）
 export interface DiagnosisResult {
@@ -67,6 +110,12 @@ export interface RecommendedStep {
   products?: Product[]
   // 補正処理で先頭に自動挿入されたステップかどうか
   isCorrection?: boolean
+  // 時短（3ステップ）モードに含まれるステップかどうか。
+  // steps は常に全件返し、この印で絞り込む。こうすると履歴に保存した
+  // スナップショットからも、あとで時短モードを再現できる。
+  isMinimal?: boolean
+  // 「どこに・どのくらい・どの方向に」の図解データ
+  guide?: StepGuide
 }
 
 // フロントに返す最終レスポンス

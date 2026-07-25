@@ -4,6 +4,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useAuth } from './AuthProvider'
+import RoutineModeToggle from './RoutineModeToggle'
+import StepSlides from './StepSlides'
+import { stepsForMode } from '../lib/recommend'
 import { latestHistory } from '../lib/historyRepository'
 import { listRoutineLogs, toggleRoutineStep } from '../lib/routineRepository'
 import {
@@ -14,7 +17,7 @@ import {
   dateKey,
   recentDays,
 } from '../lib/streak'
-import type { DiagnosisHistoryEntry, RoutineLog } from '../lib/types'
+import type { DiagnosisHistoryEntry, RoutineLog, RoutineMode } from '../lib/types'
 
 const CALENDAR_DAYS = 28 // 直近4週間を可視化
 
@@ -30,6 +33,10 @@ export default function RoutineChecklist() {
   const [error, setError] = useState<string | null>(null)
   // 日付は「表示中に日付が変わる」ケースを避けるためマウント時に固定する
   const [today, setToday] = useState<string | null>(null)
+  // 時間がない日は3ステップだけに絞れるようにする
+  const [mode, setMode] = useState<RoutineMode>('full')
+  // 塗り方が分からないときのためのスライド表示
+  const [showGuide, setShowGuide] = useState(false)
 
   useEffect(() => {
     setToday(dateKey())
@@ -61,7 +68,10 @@ export default function RoutineChecklist() {
     }
   }, [userId, authLoading, today, dataVersion])
 
-  const steps = entry?.steps ?? []
+  const allSteps = useMemo(() => entry?.steps ?? [], [entry])
+  // 履歴のスナップショットに isMinimal が入っているので、保存済みの手順からも時短を再現できる
+  const steps = useMemo(() => stepsForMode(allSteps, mode), [allSteps, mode])
+  const minimalCount = useMemo(() => stepsForMode(allSteps, 'minimal').length, [allSteps])
   const todayLog = useMemo(
     () => (today ? logs.find((l) => l.date === today) : undefined),
     [logs, today]
@@ -101,7 +111,7 @@ export default function RoutineChecklist() {
     return <Panel><p className="text-sm text-muted">読み込み中…</p></Panel>
   }
 
-  if (!entry || steps.length === 0) {
+  if (!entry || allSteps.length === 0) {
     return (
       <Panel>
         <p className="text-sm text-muted leading-relaxed mb-4">
@@ -140,9 +150,11 @@ export default function RoutineChecklist() {
         <p className="text-xs tracking-editorial text-muted mb-3">直近4週間</p>
         <div className="grid grid-cols-7 gap-1.5">
           {recentDays(CALENDAR_DAYS, today).map((day) => {
+            // 分母はフルの手順数で固定する。モード切り替えで
+            // 過去の達成率の意味が変わってしまわないようにするため。
             const rate = completionRate(
               logs.find((l) => l.date === day),
-              steps.length
+              allSteps.length
             )
             const isToday = day === today
             return (
@@ -162,6 +174,15 @@ export default function RoutineChecklist() {
         </div>
         <p className="text-xs text-muted mt-3">濃いマスほどその日の達成率が高いことを表します。</p>
       </Panel>
+
+      {/* フル / 時短 の切り替え */}
+      <RoutineModeToggle
+        mode={mode}
+        onChange={setMode}
+        fullCount={allSteps.length}
+        minimalCount={minimalCount}
+        context="routine"
+      />
 
       {/* 今日のチェックリスト */}
       <Panel>
@@ -221,7 +242,18 @@ export default function RoutineChecklist() {
             今日のルーティン、コンプリートです。お疲れさまでした。
           </motion.p>
         )}
+
+        <button
+          type="button"
+          onClick={() => setShowGuide((v) => !v)}
+          className="text-xs text-accent hover:text-ink mt-4"
+        >
+          {showGuide ? '塗り方ガイドを閉じる' : '塗り方がわからない時はこちら →'}
+        </button>
       </Panel>
+
+      {/* 塗り方ガイド（1ステップずつスライドで確認） */}
+      {showGuide && <StepSlides steps={steps} />}
     </div>
   )
 }

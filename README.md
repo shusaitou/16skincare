@@ -78,6 +78,28 @@ Supabase 未設定でもアプリは壊れません。
 > リマインドの制約: Web Push（アプリを閉じていても届く通知）にはサーバーと VAPID 鍵が必要なため、
 > 現状は**アプリを開いている間に届くローカル通知**です。UI にもその旨を明記しています。
 
+### 初心者サポート（時短モード / インタラクティブ手順カード）
+
+- **時短・ミニマムメイクモード** (`lib/recommend.ts` の `stepsForMode`):
+  「フルルーティン ⇄ 時短・最低限」を切り替え。時短は**性別ごとにちょうど3ステップ**
+  （男性: 保湿 → BB → 眉 / 女性: 保湿 → 下地 → リップ）になるよう、手法側の
+  `minimalFor` で指定しています。結果画面とマイページのルーティン、どちらでも切り替え可能。
+  - 補正（高保湿工程）が発生する組み合わせでも、時短では**工程を増やさず注意書きで伝える**
+    ため、「3ステップ」の約束が崩れません。
+  - `steps` は常に全件返し `isMinimal` フラグで絞る方式なので、履歴に保存した
+    スナップショットからも時短モードを再現できます（DBスキーマの変更不要）。
+- **インタラクティブ手順カード** (`components/StepSlides.tsx`, `components/FaceMap.tsx`):
+  1ステップずつスライド表示し、**「顔のどこに・どのくらいの量・どの方向に」**を
+  SVG の顔マップ（塗る範囲のハイライト＋動かす方向の矢印）で示します。
+  量（パール大など）・コツ・やりがちな失敗を各ステップに添付。矢印キーでも送れます。
+  - ガイドデータは `lib/stepGuides.ts` に technique_id をキーで分離（将来の
+    `technique_guides` 子テーブルを想定）。全手法ぶん定義済みで、テストで網羅性を検証しています。
+
+> **なぜ AI 画像生成ではなく SVG か**: この図の情報は「位置と方向」そのものです。
+> 生成画像では「頬骨の高い位置から斜め上へ」を指示どおりに描けず、手順ごとに絵柄も変わります。
+> SVG なら座標で正確に指定でき、全手順で画風が揃い、オフラインでも表示でき、追加コストも
+> かかりません。AI 画像が向くのは「完成イメージの雰囲気」側（＝ミューズ機能）です。
+
 ### DB担当への申し送り（スキーマ拡張が必要な項目）
 - `makeup_techniques` に `gender`(text: unisex/men/women) 列を追加
 - 手法の成分・製品は子テーブル（例: `technique_ingredients` / `technique_products`）が必要
@@ -93,6 +115,10 @@ components/QuestionCard.tsx 設問カード
 components/ResultView.tsx   診断結果＋レコメンド表示
 components/AuthProvider.tsx ログイン状態の共有＋ローカルデータの引き継ぎ
 components/RoutineChecklist.tsx 今日のチェックリスト＋継続の可視化
+components/StepSlides.tsx   1ステップずつのインタラクティブ手順カード
+components/FaceMap.tsx      塗る位置・方向を示すSVG顔マップ
+components/RoutineModeToggle.tsx フル ⇄ 時短の切り替え
+lib/stepGuides.ts           塗り方ガイド（量・方向・コツ）
 lib/types.ts                共有型（DBスキーマ対応）
 lib/diagnosisStore.ts       設問データ + Zustandストア + スコア集計
 lib/techniques.ts           手法・タグのモックデータ
