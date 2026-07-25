@@ -1,0 +1,45 @@
+{
+  "name": "16 Skincare — パーソナライズドメイク診断",
+  "short_name": "16 Skincare",
+  "description": "肌質×パーソナルカラーの16タイプ診断と、毎日のスキンケア・メイクルーティン記録。",
+  "lang": "ja",
+  "start_url": "/mypage",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FAF6F1",
+  "theme_color": "#B5806A",
+  "categories": ["lifestyle", "health"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "今日のルーティン",
+      "short_name": "ルーティン",
+      "url": "/mypage?tab=routine"
+    },
+    {
+      "name": "診断する",
+      "short_name": "診断",
+      "url": "/diagnosis"
+    }
+  ]
+}
