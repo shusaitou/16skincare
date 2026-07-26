@@ -126,6 +126,31 @@ export interface RecommendationResponse {
   correctionReason?: string
 }
 
+// --- 手持ちコスメ -------------------------------------------------------------
+// 「提案された製品を買わなくても、いま持っているもので代替できるか」を判定するために登録する。
+
+// 色物コスメの色味。パーソナルカラーとの相性判定に使う。
+//   - 4シーズンのいずれか: その季節の色みに寄っている
+//   - neutral: どのタイプでも使いやすい（ベージュ・クリアなど）
+//   - 未指定(undefined): 分からない → 「色味は要確認」として扱う（嘘をつかないため）
+export type CosmeticTone = ColorType | 'neutral'
+
+// 手持ちコスメ1件。category は手法側の Product.category と同じ語彙を使う。
+//
+// name が任意なのは、代替判定が **カテゴリしか見ていない** ため。
+// 「リップを持っている」だけ登録できれば判定は成立するので、
+// 製品名の入力を必須にして登録のハードルを上げない。
+export interface OwnedCosmetic {
+  id: string
+  category: string
+  name?: string
+  brand?: string
+  tone?: CosmeticTone
+  // バーコードから登録した場合の JAN コード（再取得・重複判定に使う）
+  jan?: string
+  created_at: string // ISO8601
+}
+
 // --- アカウント機能（診断履歴 / お気に入り / ルーティン記録） -----------------
 // ログイン中は Supabase、未ログイン時は localStorage に保存する（同じ型で扱う）。
 

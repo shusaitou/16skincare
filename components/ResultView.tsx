@@ -1,12 +1,14 @@
 'use client'
 
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import type { Product, RecommendationResponse, RoutineMode } from '../lib/types'
 import type { ScoreKey } from '../lib/diagnosisStore'
 import { colorLabel, stepsForMode, styleLabel } from '../lib/recommend'
 import { PRODUCT_DISCLAIMER } from '../lib/techniques'
+import { useOwnedStore } from '../lib/ownedStore'
+import { judgeAll } from '../lib/substitution'
 import { favoriteOfProduct, favoriteOfStep } from '../lib/favoritesRepository'
 import RoutineModeToggle from './RoutineModeToggle'
 import StepSlides from './StepSlides'
@@ -16,6 +18,9 @@ import ColorPalette from './ColorPalette'
 import MuseCard from './MuseCard'
 import ShareCard from './ShareCard'
 import FavoriteButton from './FavoriteButton'
+import OwnedToggle from './OwnedToggle'
+import SubstitutionBadge, { SubstitutionNote } from './SubstitutionBadge'
+import SubstitutionSummary from './SubstitutionSummary'
 
 type Props = {
   recommendation: RecommendationResponse
@@ -37,6 +42,18 @@ export default function ResultView({ recommendation, totals, onReset, saveState 
   const hasProducts = steps.some((s) => s.products && s.products.length > 0)
   // 時短モードでは補正を工程として足さないため、注意書きとして見せる
   const correctionIsStep = steps.some((s) => s.isCorrection)
+
+  // 手持ちコスメでの代替判定。手持ちを足すたびに即座に再計算される。
+  const { items: owned, hydrated, hydrate } = useOwnedStore()
+  useEffect(() => {
+    hydrate()
+  }, [hydrate])
+
+  const subs = useMemo(
+    () => judgeAll(steps, hydrated ? owned : [], result.color),
+    [steps, owned, hydrated, result.color]
+  )
+  const subById = useMemo(() => new Map(subs.map((s) => [s.stepId, s])), [subs])
 
   return (
     <div className="space-y-6">
@@ -68,7 +85,10 @@ export default function ResultView({ recommendation, totals, onReset, saveState 
         </motion.div>
       )}
 
-      {/* 6. 手順（フル / 時短 の切り替え＋リスト / スライド表示） */}
+      {/* 6. 手持ちコスメでどこまでまかなえるか */}
+      <SubstitutionSummary subs={subs} ownedCount={hydrated ? owned.length : 0} />
+
+      {/* 7. 手順（フル / 時短 の切り替え＋リスト / スライド表示） */}
       <RoutineModeToggle
         mode={mode}
         onChange={setMode}
@@ -131,8 +151,10 @@ export default function ResultView({ recommendation, totals, onReset, saveState 
               <div className="flex-1 pb-6 border-b border-line last:border-0">
                 <div className="flex items-start gap-3">
                   <p className="text-ink leading-relaxed flex-1">{step.description}</p>
+                  {subById.get(step.id) && <SubstitutionBadge sub={subById.get(step.id)!} />}
                   <FavoriteButton item={favoriteOfStep(step)} />
                 </div>
+                {subById.get(step.id) && <SubstitutionNote sub={subById.get(step.id)!} />}
 
                 {step.ingredients && step.ingredients.length > 0 && (
                   <div className="mt-3">
@@ -213,6 +235,7 @@ function ProductRow({ product }: { product: Product }) {
         <span className="font-medium">{product.brand}</span>
         <span>{product.name}</span>
       </span>
+      <OwnedToggle product={product} />
       <FavoriteButton item={favoriteOfProduct(product)} size="sm" />
     </li>
   )
