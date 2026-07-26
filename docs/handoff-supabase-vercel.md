@@ -46,6 +46,19 @@ pbcopy < supabase/migrations/0001_account_features.sql
 - `users.auth_id` は `uuid` 型 → SQLはそのまま通ります
 - `questions` / `options` / `makeup_techniques` / `technique_tags` は作成済み・データ入り → **触りません**
 
+### A-1b. users テーブルの RLS 修正（必須・追加依頼）
+
+`supabase/migrations/0002_fix_users_rls.sql` も **0001 の後に実行**してください。
+
+0001 実行後に検証したところ、`users` テーブルだけ RLS が効いていませんでした
+（anon キーで全行が読め、INSERT も成功する状態）。
+初期構築時に作られた別名の緩いポリシーが残っており、PostgreSQL の PERMISSIVE
+ポリシーは OR 評価のため、1つでも通るものがあると許可されてしまうためです。
+0002 では **名前に関係なく既存ポリシーを全削除してから**正しいものを作り直します。
+
+あわせて、疎通確認で混入したゴミ行の削除と、`auth_id` の NOT NULL 化 +
+`auth.users` への外部キー追加も行います。
+
 ### A-2. メール認証の有効化（必須）
 
 **Authentication → Sign In / Providers → Email** を有効化してください。
@@ -135,6 +148,21 @@ curl -s -X POST "$U/rest/v1/diagnosis_history" \
 
 **期待値: `401` か `403`、`row-level security policy` を含むエラー。**
 ここで `201`（作成成功）が返ったら **RLS が効いていません**。A-1 のSQLを実行し直してください。
+
+`users` についても同じ確認をしてください（0002 実行後）。
+
+```bash
+# 期待: [] （他人の行が1件も見えない）
+curl -s -H "apikey: $K" "$U/rest/v1/users?select=*"
+# 期待: 42501 row-level security のエラー
+curl -s -X POST "$U/rest/v1/users" -H "apikey: $K" \
+  -H "Authorization: Bearer $K" -H "Content-Type: application/json" -d '{}'
+```
+
+> 補足: 書き込みRLSを確認する時は、**空データ `{}` を投げる**のが安全です。
+> RLS が効いていれば `42501` で弾かれ、効いていなければ NOT NULL 違反になるだけで、
+> どちらでもゴミ行が残りません。ただし全カラムが NULL 許容のテーブルでは
+> 行が作られてしまうので、その場合は必ず後片付けをしてください。
 
 ### C-3. アプリ上での動作確認
 
