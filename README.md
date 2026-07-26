@@ -58,6 +58,22 @@ npm run dev
   登録は `/cosmetics` のフォームか、結果画面の各製品にある「持ってる?」ボタンから。
   保存先は localStorage（端末ごとの持ち物に近いため、ログイン不要ですぐ使える）。
 
+- **入力補完** (`lib/productCatalog.ts`, `components/AutocompleteInput.tsx`):
+  ブランド・製品名の入力に予測候補を出す。
+  - **ひらがな入力でカタカナに当たる**（「びおれ」→ ビオレ）。全角英数・大文字小文字・
+    長音や中黒の揺れも吸収する（`normalizeJa`）。
+  - ブランドを先に入れると、**製品名の候補がそのブランドのものに絞られる**。
+    候補を選ぶとブランドが未入力なら自動で補完される。
+  - 前方一致を部分一致より先に並べる。
+  - `<datalist>` ではなく自前のコンボボックスにしたのは、ブラウザ間で挙動が揃わず、
+    候補にブランド名を添えて表示できないため。キーボード（↑↓ / Enter / Esc）に対応。
+
+  > ⚠️ **製品名の候補は自分で作らない**。候補は手法マスター(`techniques.ts`)と、
+  > ユーザー自身が登録済みのものだけから生成している。うろ覚えの製品名を候補に出すと
+  > 存在しない商品を勧めることになるため（`lib/muses.ts` で実在人物名を既定で空に
+  > しているのと同じ方針）。ブランド名は実在が明確なので一覧を持っている。
+  > 候補はあくまで入力補助で、**一覧に無い値も自由に入力できる**。
+
 ### DB担当への申し送り（スキーマ拡張が必要な項目）
 - `makeup_techniques` に `gender`(text: unisex/men/women) 列を追加
 - 手法の成分・製品は子テーブル（例: `technique_ingredients` / `technique_products`）が必要
@@ -77,6 +93,8 @@ lib/supabaseClient.ts     Supaクライアント
 app/cosmetics/page.tsx    手持ちコスメの登録・管理
 lib/substitution.ts       手持ちで代替できるかの判定ロジック
 lib/ownedStore.ts         手持ちコスメのストア（zustand + localStorage）
+lib/productCatalog.ts     入力補完の候補（ブランド一覧・製品索引・日本語の正規化）
+components/AutocompleteInput.tsx 予測変換つき入力欄（コンボボックス）
 components/SubstitutionSummary.tsx 充足率と買い足し候補のサマリー
 ```
 

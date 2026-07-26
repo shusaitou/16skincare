@@ -1,11 +1,13 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useOwnedStore, type NewOwnedCosmetic } from '../../lib/ownedStore'
 import { allProductCategories, isColorSensitive } from '../../lib/substitution'
+import { searchBrands, searchProducts } from '../../lib/productCatalog'
 import { colorLabel } from '../../lib/recommend'
+import AutocompleteInput from '../../components/AutocompleteInput'
 import type { ColorType, CosmeticTone } from '../../lib/types'
 
 const TONES: { value: CosmeticTone | ''; label: string }[] = [
@@ -31,6 +33,25 @@ export default function CosmeticsPage() {
   useEffect(() => {
     hydrate()
   }, [hydrate])
+
+  // 入力補完の候補。ブランドとカテゴリが決まるほど製品名の候補が絞れる。
+  const brandSuggestions = useMemo(
+    () => searchBrands(form.brand ?? '', items).map((b) => ({ value: b })),
+    [form.brand, items]
+  )
+  const productMatches = useMemo(
+    () =>
+      searchProducts(form.name, {
+        brand: form.brand,
+        category: form.category || undefined,
+        owned: items,
+      }),
+    [form.name, form.brand, form.category, items]
+  )
+  const productSuggestions = useMemo(
+    () => productMatches.map((p) => ({ value: p.name, hint: p.brand || p.category })),
+    [productMatches]
+  )
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -81,28 +102,37 @@ export default function CosmeticsPage() {
             </select>
           </label>
 
+          {/* ブランドを先に置く。決めておくと製品名の候補が絞られるため */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <label className="block">
-              <span className="text-xs tracking-editorial text-muted">
-                製品名<span className="text-accent ml-1">必須</span>
-              </span>
-              <input
-                required
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="例: ハトムギ化粧水"
-                className="mt-1.5 w-full bg-cream border border-line rounded-sm px-4 py-3 text-ink outline-none focus:border-accent"
-              />
-            </label>
-            <label className="block">
-              <span className="text-xs tracking-editorial text-muted">ブランド（任意）</span>
-              <input
-                value={form.brand ?? ''}
-                onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))}
-                placeholder="例: ナチュリエ"
-                className="mt-1.5 w-full bg-cream border border-line rounded-sm px-4 py-3 text-ink outline-none focus:border-accent"
-              />
-            </label>
+            <AutocompleteInput
+              label="ブランド（任意）"
+              value={form.brand ?? ''}
+              onChange={(brand) => setForm((f) => ({ ...f, brand }))}
+              suggestions={brandSuggestions}
+              placeholder="例: ナチュリエ（「なちゅりえ」でも可）"
+              help="一覧に無いブランドもそのまま入力できます。"
+            />
+            <AutocompleteInput
+              label={
+                <>
+                  製品名<span className="text-accent ml-1">必須</span>
+                </>
+              }
+              required
+              value={form.name}
+              onChange={(name) => setForm((f) => ({ ...f, name }))}
+              suggestions={productSuggestions}
+              placeholder="例: ハトムギ化粧水"
+              onPick={(s) =>
+                setForm((f) => {
+                  if (f.brand) return f // 入力済みなら上書きしない
+                  // hint はブランドが無いとカテゴリになるので、実データから引き直す
+                  const picked = productMatches.find((p) => p.name === s.value)
+                  return picked?.brand ? { ...f, brand: picked.brand } : f
+                })
+              }
+              help="候補はアプリ内のデータと、あなたが登録済みのものだけです。"
+            />
           </div>
 
           {/* 色物のときだけ色味を聞く（不要な入力を増やさない） */}
