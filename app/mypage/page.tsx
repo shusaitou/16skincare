@@ -7,13 +7,15 @@ import { useAuth } from '../../components/AuthProvider'
 import HistoryList from '../../components/HistoryList'
 import FavoritesList from '../../components/FavoritesList'
 import RoutineChecklist from '../../components/RoutineChecklist'
+import ProgressPanel from '../../components/ProgressPanel'
 import ReminderSettings from '../../components/ReminderSettings'
 import InstallPrompt from '../../components/InstallPrompt'
 
-type Tab = 'routine' | 'history' | 'favorites' | 'settings'
+type Tab = 'routine' | 'progress' | 'history' | 'favorites' | 'settings'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'routine', label: 'ルーティン' },
+  { id: 'progress', label: '記録' },
   { id: 'history', label: '診断履歴' },
   { id: 'favorites', label: 'お気に入り' },
   { id: 'settings', label: '設定' },
@@ -108,6 +110,7 @@ export default function MyPage() {
           transition={{ duration: 0.18 }}
         >
           {tab === 'routine' && <RoutineChecklist />}
+          {tab === 'progress' && <ProgressPanel />}
           {tab === 'history' && <HistoryList />}
           {tab === 'favorites' && <FavoritesList />}
           {tab === 'settings' && (

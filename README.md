@@ -78,6 +78,23 @@ Supabase 未設定でもアプリは壊れません。
 > リマインドの制約: Web Push（アプリを閉じていても届く通知）にはサーバーと VAPID 鍵が必要なため、
 > 現状は**アプリを開いている間に届くローカル通知**です。UI にもその旨を明記しています。
 
+### 続けた結果を見せる（記録タブ）
+
+診断 → ルーティン → チェック で終わらせず、「で、どうなったの？」に答えるための画面
+(`components/ProgressPanel.tsx`, `lib/progress.ts`)。マイページの **記録** タブ。
+
+- **再診断のおすすめ**: 前回の診断から30日経つと表示。その間のルーティン実施日数も添える
+- **今週の記録**: 実施した日数・チェック回数と、続いている工程 / 今週チェックしなかった工程。
+  落ちた工程が多い週は時短モードへ誘導する
+- **診断スコアの推移**: 再診断のたびのスコアを軸内の割合（%）に正規化してスパークライン表示。
+  設問数が変わっても比較できる
+
+> ⚠️ **表現の制約（薬機法）**: ここで扱うのは「診断の回答にもとづくスコアの推移」と
+> 「実施日数」という**事実だけ**です。「肌が改善した」「効果があった」といった
+> 化粧品の効能を主張する表現は使いません。UI にも
+> 「診断の回答にもとづくスコアの推移であり、肌の状態の測定値ではありません」と明記しています。
+> 文言を変える際もこの方針を守ってください（`lib/progress.ts` 冒頭にも記載）。
+
 ### 初心者サポート（時短モード / インタラクティブ手順カード）
 
 - **時短・ミニマムメイクモード** (`lib/recommend.ts` の `stepsForMode`):
@@ -128,6 +145,8 @@ lib/historyRepository.ts    診断履歴（Supabase / localStorage）
 lib/favoritesRepository.ts  お気に入り（Supabase / localStorage）
 lib/routineRepository.ts    ルーティン記録（Supabase / localStorage）
 lib/streak.ts               日付ユーティリティ＋連続日数の集計
+lib/progress.ts             再診断のおすすめ・スコア推移・週次の振り返り
+components/ProgressPanel.tsx 記録タブ（続けた結果の可視化）
 supabase/migrations/        DBスキーマ（SQL Editor で実行）
 public/manifest.webmanifest PWAマニフェスト
 public/sw.js                Service Worker（オフライン＋通知）
