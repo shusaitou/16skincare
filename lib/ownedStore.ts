@@ -46,16 +46,23 @@ function newId(): string {
     : `owned-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
 }
 
-// 同じものを二重登録しないための鍵（カテゴリ＋ブランド＋製品名）
+// 同じものを二重登録しないための鍵（カテゴリ＋ブランド＋製品名）。
+// 製品名なし（カテゴリだけのタップ登録）は1カテゴリにつき1件になる。
 export function ownedKey(item: Pick<OwnedCosmetic, 'category' | 'name' | 'brand'>): string {
-  return `${item.category}::${item.brand ?? ''}::${item.name}`.toLowerCase()
+  return `${item.category}::${item.brand ?? ''}::${item.name ?? ''}`.toLowerCase()
+}
+
+// 表示用の名前。製品名が無いときはカテゴリ名で代用する。
+export function ownedLabel(item: OwnedCosmetic): string {
+  return item.name?.trim() || item.category
 }
 
 export interface NewOwnedCosmetic {
   category: string
-  name: string
+  name?: string
   brand?: string
   tone?: CosmeticTone
+  jan?: string
 }
 
 interface OwnedState {
@@ -83,10 +90,12 @@ export const useOwnedStore = create<OwnedState>((set, get) => ({
 
   add: (input) =>
     set((s) => {
-      const key = ownedKey(input)
+      // 空文字の製品名は「未入力」と同じ扱いに揃える（鍵がぶれないように）
+      const normalized = { ...input, name: input.name?.trim() || undefined }
+      const key = ownedKey(normalized)
       if (s.items.some((i) => ownedKey(i) === key)) return s
       const items = [
-        { ...input, id: newId(), created_at: new Date().toISOString() },
+        { ...normalized, id: newId(), created_at: new Date().toISOString() },
         ...s.items,
       ]
       write(items)

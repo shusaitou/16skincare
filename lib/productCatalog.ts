@@ -90,7 +90,10 @@ export function productCandidates(
 
   const all: ProductSuggestion[] = [
     ...catalogProducts().map((p) => ({ name: p.name, brand: p.brand, category: p.category })),
-    ...owned.map((o) => ({ name: o.name, brand: o.brand ?? '', category: o.category })),
+    // 製品名なしで登録されたもの（カテゴリだけのタップ登録）は候補にならない
+    ...owned
+      .filter((o): o is typeof o & { name: string } => Boolean(o.name))
+      .map((o) => ({ name: o.name, brand: o.brand ?? '', category: o.category })),
   ]
 
   const nb = brand ? normalizeJa(brand) : ''

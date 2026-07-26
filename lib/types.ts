@@ -87,11 +87,17 @@ export interface RecommendationResponse {
 export type CosmeticTone = ColorType | 'neutral'
 
 // 手持ちコスメ1件。category は手法側の Product.category と同じ語彙を使う。
+//
+// name が任意なのは、代替判定が **カテゴリしか見ていない** ため。
+// 「リップを持っている」だけ登録できれば判定は成立するので、
+// 製品名の入力を必須にして登録のハードルを上げない。
 export interface OwnedCosmetic {
   id: string
   category: string
-  name: string
+  name?: string
   brand?: string
   tone?: CosmeticTone
+  // バーコードから登録した場合の JAN コード（再取得・重複判定に使う）
+  jan?: string
   created_at: string // ISO8601
 }

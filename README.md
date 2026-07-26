@@ -58,6 +58,28 @@ npm run dev
   登録は `/cosmetics` のフォームか、結果画面の各製品にある「持ってる?」ボタンから。
   保存先は localStorage（端末ごとの持ち物に近いため、ログイン不要ですぐ使える）。
 
+- **登録の3段階** (`app/cosmetics`): 手前ほど手間が少ない。
+  1. **カテゴリをタップ** (`components/CategoryPicker.tsx`) — 代替判定は
+     **カテゴリしか見ていない**ので、これだけで判定は成立する。製品名を打たせないのが
+     登録のハードルを下げる一番の近道。色物はタップ後に色味チップが出る。
+  2. **バーコード** (`components/BarcodeScanner.tsx`) — JAN を読んで製品名まで自動入力。
+     標準の `BarcodeDetector` を使い、非対応環境（iOS Safari）では数字の手入力に
+     フォールバックする（ライブラリを足さない方針）。
+  3. **手入力（予測変換つき）** — 上記で拾えないものだけ。
+
+- **商品データの照会** (`app/api/product/route.ts`, `lib/productLookup.ts`):
+  - `GET /api/product?jan=…` — JAN から商品を引く。**Open Beauty Facts**（キー不要）を
+    優先し、外れたら楽天にフォールバック。
+  - `GET /api/product?q=…` — 楽天市場商品検索APIでキーワード検索（化粧品ジャンルに限定）。
+  - 商品名からアプリのカテゴリを推定する（`inferCategory`）。「化粧下地」を「化粧水」と
+    取り違えないよう、**具体的なルールを先**に置いている。推定は外れる前提で、
+    UI では必ずユーザーが確認・修正できるようにしている。
+  - ショップ独自の販促文字（`【送料無料】`など）は `cleanProductName` で除去。
+    **店名(`shopName`)をブランドとして扱わない**（誤情報になるため）。
+  - `RAKUTEN_APP_ID` はサーバー側のみ（`NEXT_PUBLIC_` を付けない）。
+    **未設定でもアプリは動く** — JAN 照会は Open Beauty Facts が担当し、
+    キーワード検索はアプリ内カタログだけになる。
+
 - **入力補完** (`lib/productCatalog.ts`, `components/AutocompleteInput.tsx`):
   ブランド・製品名の入力に予測候補を出す。
   - **ひらがな入力でカタカナに当たる**（「びおれ」→ ビオレ）。全角英数・大文字小文字・
@@ -95,6 +117,10 @@ lib/substitution.ts       手持ちで代替できるかの判定ロジック
 lib/ownedStore.ts         手持ちコスメのストア（zustand + localStorage）
 lib/productCatalog.ts     入力補完の候補（ブランド一覧・製品索引・日本語の正規化）
 components/AutocompleteInput.tsx 予測変換つき入力欄（コンボボックス）
+components/CategoryPicker.tsx タップだけで登録するカテゴリ選択
+components/BarcodeScanner.tsx バーコード読み取り（手入力フォールバックつき）
+app/api/product/route.ts  商品照会API（楽天 / Open Beauty Facts）
+lib/productLookup.ts      商品名の整形とカテゴリ推定・JAN検証
 components/SubstitutionSummary.tsx 充足率と買い足し候補のサマリー
 ```
 
