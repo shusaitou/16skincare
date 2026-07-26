@@ -1,16 +1,21 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import type { Product, RecommendationResponse } from '../lib/types'
 import type { ScoreKey } from '../lib/diagnosisStore'
 import { colorLabel, styleLabel } from '../lib/recommend'
 import { PRODUCT_DISCLAIMER } from '../lib/techniques'
+import { useOwnedStore } from '../lib/ownedStore'
+import { judgeAll } from '../lib/substitution'
 import PersonaCard from './PersonaCard'
 import ScoreChart from './ScoreChart'
 import ColorPalette from './ColorPalette'
 import MuseCard from './MuseCard'
 import ShareCard from './ShareCard'
+import OwnedToggle from './OwnedToggle'
+import SubstitutionBadge, { SubstitutionNote } from './SubstitutionBadge'
+import SubstitutionSummary from './SubstitutionSummary'
 
 type Props = {
   recommendation: RecommendationResponse
@@ -21,6 +26,18 @@ type Props = {
 export default function ResultView({ recommendation, totals, onReset }: Props) {
   const { result, steps, correctionReason } = recommendation
   const hasProducts = steps.some((s) => s.products && s.products.length > 0)
+
+  // 手持ちコスメでの代替判定。手持ちを足すたびに即座に再計算される。
+  const { items: owned, hydrated, hydrate } = useOwnedStore()
+  useEffect(() => {
+    hydrate()
+  }, [hydrate])
+
+  const subs = useMemo(
+    () => judgeAll(steps, hydrated ? owned : [], result.color),
+    [steps, owned, hydrated, result.color]
+  )
+  const subById = useMemo(() => new Map(subs.map((s) => [s.stepId, s])), [subs])
 
   return (
     <div className="space-y-6">
@@ -47,7 +64,10 @@ export default function ResultView({ recommendation, totals, onReset }: Props) {
         </motion.div>
       )}
 
-      {/* 5. おすすめ手順（成分・製品つき） */}
+      {/* 6. 手持ちコスメでどこまでまかなえるか */}
+      <SubstitutionSummary subs={subs} ownedCount={hydrated ? owned.length : 0} />
+
+      {/* 7. おすすめ手順（成分・製品つき） */}
       <div className="bg-ivory rounded-sm border border-line p-8">
         <p className="text-xs tracking-editorial text-accent mb-1">HOW TO</p>
         <h3 className="font-serif text-xl text-ink mb-1">
@@ -75,7 +95,11 @@ export default function ResultView({ recommendation, totals, onReset }: Props) {
                 {i + 1}
               </span>
               <div className="flex-1 pb-6 border-b border-line last:border-0">
-                <p className="text-ink leading-relaxed">{step.description}</p>
+                <div className="flex items-start gap-3">
+                  <p className="text-ink leading-relaxed flex-1">{step.description}</p>
+                  {subById.get(step.id) && <SubstitutionBadge sub={subById.get(step.id)!} />}
+                </div>
+                {subById.get(step.id) && <SubstitutionNote sub={subById.get(step.id)!} />}
 
                 {step.ingredients && step.ingredients.length > 0 && (
                   <div className="mt-3">
@@ -128,10 +152,13 @@ export default function ResultView({ recommendation, totals, onReset }: Props) {
 
 function ProductRow({ product }: { product: Product }) {
   return (
-    <li className="text-sm text-ink flex flex-wrap items-baseline gap-x-2">
-      <span className="text-muted text-xs">{product.category}</span>
-      <span className="font-medium">{product.brand}</span>
-      <span>{product.name}</span>
+    <li className="text-sm text-ink flex items-baseline gap-2">
+      <span className="flex-1 flex flex-wrap items-baseline gap-x-2">
+        <span className="text-muted text-xs">{product.category}</span>
+        <span className="font-medium">{product.brand}</span>
+        <span>{product.name}</span>
+      </span>
+      <OwnedToggle product={product} />
     </li>
   )
 }

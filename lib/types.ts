@@ -76,3 +76,22 @@ export interface RecommendationResponse {
   // どの矛盾を検出し補正したかの説明（UI表示 / デバッグ用）
   correctionReason?: string
 }
+
+// --- 手持ちコスメ -------------------------------------------------------------
+// 「提案された製品を買わなくても、いま持っているもので代替できるか」を判定するために登録する。
+
+// 色物コスメの色味。パーソナルカラーとの相性判定に使う。
+//   - 4シーズンのいずれか: その季節の色みに寄っている
+//   - neutral: どのタイプでも使いやすい（ベージュ・クリアなど）
+//   - 未指定(undefined): 分からない → 「色味は要確認」として扱う（嘘をつかないため）
+export type CosmeticTone = ColorType | 'neutral'
+
+// 手持ちコスメ1件。category は手法側の Product.category と同じ語彙を使う。
+export interface OwnedCosmetic {
+  id: string
+  category: string
+  name: string
+  brand?: string
+  tone?: CosmeticTone
+  created_at: string // ISO8601
+}

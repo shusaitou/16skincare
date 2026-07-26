@@ -40,6 +40,23 @@ npm run dev
 - **API** (`app/api/diagnosis`): 入力検証 → users保存(任意) → 手順をJSON返却。
 - **テスト** (`tests/`): Vitest で補正・フィルタ・性別出し分け・成分/製品受け渡し・バリデーションを検証（`npm test`）。
 - **モックデータ** (`lib/techniques.ts`): DB 接続後は `getTechniques()` をクエリに差し替えるだけ。
+- **手持ちコスメでの代替判定** (`lib/substitution.ts`, `app/cosmetics`): 手持ちのコスメを登録すると、
+  各工程が「手持ちでOK / 色味を確認 / 買い足し」のどれかに判定される。結果画面の上部に
+  「製品が必要な13工程のうち3工程は手持ちでまかなえます」と充足率を表示し、
+  買い足し候補のカテゴリも一覧化する。
+
+  判定の考え方:
+  - **カテゴリで照合する**。製品名の完全一致は表記ゆれ・廃番が多く現実的でないため。
+  - **役割が重なるカテゴリは代替として認める**（BB → 化粧下地 / 保湿クリーム → 乳液 など）。
+    `CATEGORY_SUBSTITUTES` に定義。
+  - **色物は断定しない**。リップ・チーク等はカテゴリが合っていても、パーソナルカラーと
+    色味が違う／未登録なら「色味を確認」に落とす。**持っていないのに「使える」と
+    言い切らないこと**を優先している。
+  - `products` は「代表製品の一例」の列挙（組み合わせて使うものではない）なので、
+    どれか1カテゴリを満たせば代替できると判定する。
+
+  登録は `/cosmetics` のフォームか、結果画面の各製品にある「持ってる?」ボタンから。
+  保存先は localStorage（端末ごとの持ち物に近いため、ログイン不要ですぐ使える）。
 
 ### DB担当への申し送り（スキーマ拡張が必要な項目）
 - `makeup_techniques` に `gender`(text: unisex/men/women) 列を追加
@@ -57,6 +74,10 @@ lib/diagnosisStore.ts     設問データ + Zustandストア + スコア集計
 lib/techniques.ts         手法・タグのモックデータ
 lib/recommend.ts          コアアルゴリズム
 lib/supabaseClient.ts     Supaクライアント
+app/cosmetics/page.tsx    手持ちコスメの登録・管理
+lib/substitution.ts       手持ちで代替できるかの判定ロジック
+lib/ownedStore.ts         手持ちコスメのストア（zustand + localStorage）
+components/SubstitutionSummary.tsx 充足率と買い足し候補のサマリー
 ```
 
 ## 次にやること（Supabase / Vercel 担当と連携）
