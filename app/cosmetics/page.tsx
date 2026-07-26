@@ -67,7 +67,9 @@ export default function CosmeticsPage() {
     return [...local, ...remote].slice(0, 12)
   }, [localMatches, remoteSuggestions])
 
-  // 製品名の入力に応じて楽天の候補を取りに行く（打鍵ごとに叩かないよう遅延）
+  // 製品名の入力に応じて楽天の候補を取りに行く。
+  // 楽天は上限値を公開していないが 429 があり、制限はアプリID単位＝全ユーザー共有。
+  // 打鍵ごとに叩くと1人の連打で全員が止まるので、入力が落ち着いてから1回だけ投げる。
   useEffect(() => {
     const q = (form.name ?? '').trim()
     if (q.length < 2) {
@@ -84,7 +86,7 @@ export default function CosmeticsPage() {
         // 外部APIが落ちていてもアプリ内候補だけで動く
         setRemoteSuggestions([])
       }
-    }, 400)
+    }, 800)
     return () => clearTimeout(timer)
   }, [form.name])
 
