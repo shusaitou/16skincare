@@ -1,5 +1,6 @@
 import { CORRECTION_STEP, TECHNIQUES } from './techniques'
 import { colorLabel } from './recommend'
+import { checkIngredients, summarizeIngredients, type IngredientCheck } from './ingredients'
 import type { ColorType, CosmeticTone, OwnedCosmetic, RecommendedStep } from './types'
 
 // 「提案された製品を、手持ちのコスメで代替できるか」の判定。
@@ -67,6 +68,9 @@ export interface StepSubstitution {
   requiredCategories: string[]
   // 表示用の補足（「BBで代替」「色味が違う」など）
   note?: string
+  // 手順の「注目成分」が手持ちに入っているかの照合結果。
+  // 手持ち品の全成分が分かる場合（バーコード登録できた場合）のみ入る。
+  ingredientChecks?: IngredientCheck[]
 }
 
 /**
@@ -80,6 +84,15 @@ export function judgeStep(
   owned: OwnedCosmetic[],
   color: ColorType
 ): StepSubstitution {
+  // カテゴリ判定の結果に、成分の照合結果を後から添える
+  const withIngredients = (r: StepSubstitution): StepSubstitution => {
+    const list = r.matched?.ingredients ?? []
+    const required = step.ingredients ?? []
+    if (list.length === 0 || required.length === 0) return r
+    const checks = checkIngredients(required, list)
+    return summarizeIngredients(checks).hasData ? { ...r, ingredientChecks: checks } : r
+  }
+
   const requiredCategories = [...new Set((step.products ?? []).map((p) => p.category))]
 
   if (requiredCategories.length === 0) {
@@ -99,24 +112,24 @@ export function judgeStep(
       const substituteNote = viaSubstitute ? `手持ちの「${item.category}」で代替` : undefined
 
       if (!isColorSensitive(required)) {
-        return {
+        return withIngredients({
           stepId: step.id,
           status: 'have',
           matched: item,
           requiredCategories,
           note: substituteNote,
-        }
+        })
       }
 
       // 色物: 色味が一致 or ニュートラルならそのまま使える
       if (item.tone === color || item.tone === 'neutral') {
-        return {
+        return withIngredients({
           stepId: step.id,
           status: 'have',
           matched: item,
           requiredCategories,
           note: substituteNote ?? toneNote(item.tone, color),
-        }
+        })
       }
 
       // 色味が違う / 未登録 → 断定せず「要確認」に落とす
@@ -130,7 +143,9 @@ export function judgeStep(
     }
   }
 
-  return fallback ?? { stepId: step.id, status: 'need', requiredCategories }
+  return fallback
+    ? withIngredients(fallback)
+    : { stepId: step.id, status: 'need', requiredCategories }
 }
 
 function toneNote(tone: CosmeticTone | undefined, color: ColorType): string {

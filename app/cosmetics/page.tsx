@@ -119,13 +119,16 @@ export default function CosmeticsPage() {
           name: hit.name,
           brand: hit.brand,
           jan: hit.jan ?? jan,
+          // 全成分が取れた場合は保存しておき、注目成分の照合に使う
+          ingredients: hit.ingredients,
         })
         setShowForm(true)
         setLookup({ loading: false })
+        const ing = hit.ingredients?.length ? `全成分${hit.ingredients.length}件も取得しました。` : ''
         setMessage(
-          hit.category
+          (hit.category
             ? `「${hit.name}」が見つかりました。内容を確認して追加してください。`
-            : `「${hit.name}」が見つかりました。カテゴリだけ選んでください。`
+            : `「${hit.name}」が見つかりました。カテゴリだけ選んでください。`) + ing
         )
       } catch {
         setLookup({ loading: false, error: '商品の照会に失敗しました。手入力で追加してください。' })

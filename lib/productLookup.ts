@@ -7,10 +7,14 @@
 //
 // キーワード推定は誤ることがある前提で、UI 側では必ずユーザーが確認・修正できるようにする。
 
+import { parseIngredientList } from './ingredients'
+
 export interface LookedUpProduct {
   jan?: string
   name: string
   brand?: string
+  // 全成分表示（Open Beauty Facts から取れた場合のみ）。楽天は成分を返さない。
+  ingredients?: string[]
   // 推定できた場合のみ。できなければ UI でユーザーに選んでもらう
   category?: string
   source: 'rakuten' | 'openbeautyfacts'
@@ -139,6 +143,8 @@ export interface OpenBeautyFactsProduct {
   product_name?: string
   product_name_ja?: string
   brands?: string
+  ingredients_text?: string
+  ingredients_text_ja?: string
 }
 
 export interface OpenBeautyFactsResponse {
@@ -160,11 +166,14 @@ export function fromOpenBeautyFacts(json: OpenBeautyFactsResponse): LookedUpProd
     .map((b) => b.trim())
     .filter(Boolean)
 
+  const ingredients = parseIngredientList(p.ingredients_text_ja || p.ingredients_text || '')
+
   return {
     jan: p.code,
     name,
     brand: brands.length > 0 ? brands[brands.length - 1] : undefined,
     category: inferCategory(name),
+    ingredients: ingredients.length > 0 ? ingredients : undefined,
     source: 'openbeautyfacts',
   }
 }
