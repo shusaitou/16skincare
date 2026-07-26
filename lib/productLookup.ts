@@ -70,6 +70,36 @@ export function inferCategory(name: string): string | undefined {
 
 // --- 楽天市場 商品検索API ---------------------------------------------------
 
+export const RAKUTEN_ENDPOINT = 'https://app.rakuten.co.jp/services/api/IchibaItem/Search/20220601'
+
+// 楽天のジャンルID「美容・コスメ・香水」。
+// これを付けないと、バーコードやキーワードによっては食品や日用品まで返ってくる。
+//
+// ※ このIDは楽天のジャンルツリーに依存する。アプリID取得後に
+//   楽天ジャンル検索API等で実際に確認し、違っていれば環境変数
+//   RAKUTEN_GENRE_ID で上書きできるようにしてある（コード変更不要）。
+export const DEFAULT_COSMETICS_GENRE_ID = '100939'
+
+/**
+ * 楽天の検索URLを組み立てる。
+ * **必ずジャンル制限を掛ける**のがこの関数の役目。
+ * URLを直に書くとジャンル指定を付け忘れる（実際に一度やらかした）ので、
+ * 組み立てを1か所に集約している。
+ */
+export function buildRakutenUrl(
+  appId: string,
+  params: { keyword: string; hits?: number; genreId?: string }
+): string {
+  const query = new URLSearchParams({
+    applicationId: appId,
+    keyword: params.keyword,
+    hits: String(params.hits ?? 10),
+    format: 'json',
+    genreId: params.genreId || DEFAULT_COSMETICS_GENRE_ID,
+  })
+  return `${RAKUTEN_ENDPOINT}?${query.toString()}`
+}
+
 export interface RakutenItem {
   itemName?: string
   itemCode?: string

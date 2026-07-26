@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  DEFAULT_COSMETICS_GENRE_ID,
+  buildRakutenUrl,
   cleanProductName,
   fromOpenBeautyFacts,
   fromRakuten,
@@ -84,6 +86,39 @@ describe('inferCategory', () => {
 
   it('販促文字が付いていても推定できる', () => {
     expect(inferCategory('【送料無料】ハトムギ化粧水 500ml')).toBe('化粧水')
+  })
+})
+
+describe('buildRakutenUrl', () => {
+  // ジャンル制限の付け忘れ（= コスメ以外の商品が候補に出る）を防ぐためのテスト。
+  // 実際に JAN 照会側で付け忘れていたので、ここで固定する。
+  it('必ず化粧品ジャンルに絞る', () => {
+    const url = new URL(buildRakutenUrl('APPID', { keyword: 'ハトムギ' }))
+    expect(url.searchParams.get('genreId')).toBe(DEFAULT_COSMETICS_GENRE_ID)
+  })
+
+  it('JAN をキーワードにする場合もジャンル制限が付く', () => {
+    const url = new URL(buildRakutenUrl('APPID', { keyword: '4987241167012', hits: 5 }))
+    expect(url.searchParams.get('genreId')).toBe(DEFAULT_COSMETICS_GENRE_ID)
+    expect(url.searchParams.get('keyword')).toBe('4987241167012')
+    expect(url.searchParams.get('hits')).toBe('5')
+  })
+
+  it('ジャンルIDを環境変数などで上書きできる', () => {
+    const url = new URL(buildRakutenUrl('APPID', { keyword: 'x', genreId: '123456' }))
+    expect(url.searchParams.get('genreId')).toBe('123456')
+  })
+
+  it('空文字の上書きは既定値に落とす（誤って全ジャンルにしない）', () => {
+    const url = new URL(buildRakutenUrl('APPID', { keyword: 'x', genreId: '' }))
+    expect(url.searchParams.get('genreId')).toBe(DEFAULT_COSMETICS_GENRE_ID)
+  })
+
+  it('アプリIDとキーワードを正しくエスケープする', () => {
+    const url = new URL(buildRakutenUrl('APP&ID', { keyword: '化粧水 &' }))
+    expect(url.searchParams.get('applicationId')).toBe('APP&ID')
+    expect(url.searchParams.get('keyword')).toBe('化粧水 &')
+    expect(url.searchParams.get('format')).toBe('json')
   })
 })
 
