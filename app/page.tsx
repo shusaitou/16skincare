@@ -32,6 +32,12 @@ export default function Home() {
         >
           手持ちのコスメを登録
         </Link>
+        <Link
+          href="/mypage"
+          className="inline-block px-8 py-4 border border-line text-ink rounded-sm hover:border-accent hover:text-accent transition-colors tracking-editorial text-sm"
+        >
+          マイページ
+        </Link>
       </div>
 
       <div className="mt-16 grid grid-cols-1 sm:grid-cols-2 gap-px bg-line border border-line rounded-sm overflow-hidden">
@@ -40,6 +46,10 @@ export default function Home() {
           { t: 'パーソナルカラー', d: '4シーズンで判定' },
           { t: '成分・製品提案', d: '注目成分と代表製品の例' },
           { t: '手持ちで代替', d: '買わずに済む工程が分かる' },
+          { t: '時短モード', d: '時間がない日は3ステップ' },
+          { t: '診断履歴', d: '再診断で肌の変化を比較' },
+          { t: 'お気に入り', d: '手順・製品をブックマーク' },
+          { t: 'ルーティン記録', d: '毎日チェックして継続を可視化' },
         ].map((f) => (
           <div key={f.t} className="bg-ivory p-6">
             <p className="font-serif text-lg text-ink mb-1">{f.t}</p>

@@ -4,11 +4,13 @@ import type {
   MakeupTechnique,
   RecommendationResponse,
   RecommendedStep,
+  RoutineMode,
   SkinType,
   StyleType,
   TagValue,
 } from './types'
 import { CORRECTION_STEP, TECHNIQUES } from './techniques'
+import { getStepGuide } from './stepGuides'
 
 // 肌質ごとの「相反するタグ値」定義（データ駆動で拡張可能）。
 // 例: 乾燥肌(dry) にとって、マット肌前提の手法（skin:dry タグを持つ mode 系）は
@@ -70,6 +72,9 @@ export function buildRecommendation(
   const needsCorrection = conflicting.length > 0
 
   // --- 並び替え（step_order 昇順） ---
+  // isMinimal / guide をここで付与する。steps は常に全件返し、時短モードは
+  // isMinimal で絞り込む方式にしているので、履歴のスナップショットからでも
+  // あとで時短モードを再現できる。
   const steps: RecommendedStep[] = [...selected]
     .sort((a, b) => a.step_order - b.step_order)
     .map((t) => ({
@@ -79,6 +84,8 @@ export function buildRecommendation(
       image_url: t.image_url,
       ingredients: t.ingredients,
       products: t.products,
+      isMinimal: t.minimalFor?.includes(gender) ?? false,
+      guide: getStepGuide(t.id),
     }))
 
   // --- 3. 補正処理: 高保湿工程を先頭に挿入 ---
@@ -89,7 +96,11 @@ export function buildRecommendation(
       description: CORRECTION_STEP.description,
       ingredients: CORRECTION_STEP.ingredients,
       products: CORRECTION_STEP.products,
+      // 時短モードは「3ステップ限定」を守るため、補正は工程として足さない。
+      // 代わりに UI 側で注意書きとして correctionReason を表示する。
+      isMinimal: false,
       isCorrection: true,
+      guide: getStepGuide(CORRECTION_STEP.id),
     })
   }
 
@@ -101,6 +112,18 @@ export function buildRecommendation(
 
   // --- 4. JSON として返却 ---
   return { result, steps, correctionReason }
+}
+
+/**
+ * 表示モードに応じた手順リストを取り出す。
+ *
+ * minimal は「時間がない日・まず始めたい人」向けの最低限メイク。
+ * 各性別ちょうど3ステップになるよう techniques 側で minimalFor を指定している
+ * （男性: 保湿 → BB → 眉 / 女性: 保湿 → 下地 → リップ）。
+ * 補正ステップは含めず、注意書きとして別に伝える（3ステップの約束を守るため）。
+ */
+export function stepsForMode(steps: RecommendedStep[], mode: RoutineMode): RecommendedStep[] {
+  return mode === 'minimal' ? steps.filter((s) => s.isMinimal) : steps
 }
 
 // --- 表示用ラベル ---
