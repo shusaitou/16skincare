@@ -48,6 +48,12 @@ function foreignKeyHint(value) {
   return FOREIGN_KEY_HINTS.find((h) => h.re.test(value))?.what ?? null
 }
 
+// 管理画面のアクセスキーは伏字（●）で表示される。目のアイコンで開かずに
+// 選択してコピーすると伏字そのものが入るので、それを検出して知らせる。
+function looksMasked(value) {
+  return /^[•●*・.•\s]+$/.test(value)
+}
+
 async function check(value) {
   const url = `${ENDPOINT}?applicationId=${encodeURIComponent(value)}&keyword=${encodeURIComponent('化粧水')}&hits=1&format=json`
   try {
@@ -75,6 +81,11 @@ console.log(`${targets.length}件を順に試します（楽天のレート制�
 
 let winner = null
 for (const [i, v] of targets.entries()) {
+  if (looksMasked(v)) {
+    console.log(`⚠️  ${mask(v)}  →  伏字のままコピーされています`)
+    console.log('      ↳ 管理画面の値の右にあるコピーボタン（□のアイコン）を使ってください。')
+    continue
+  }
   if (i > 0) await sleep(1500)
   const r = await check(v)
   if (r.ok) {
