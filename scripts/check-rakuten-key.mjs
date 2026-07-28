@@ -33,6 +33,21 @@ function fromEnvLocal() {
   }
 }
 
+// 他サービスのキーを取り違えて貼るケースが多いので、形から気づけるようにする。
+// （実際に アフィリエイトID / UUID / publishable key を順に貼って外した）
+const FOREIGN_KEY_HINTS = [
+  { re: /^pk_/, what: '他サービスの publishable key（Stripe など）' },
+  { re: /^sk_/, what: '他サービスの secret key（Stripe など）' },
+  { re: /^sb_/, what: 'Supabase のキー' },
+  { re: /^eyJ/, what: 'JWT（Supabase の anon key など）' },
+  { re: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, what: 'UUID' },
+  { re: /^[0-9a-f]{6,}\.[0-9a-f]{6,}\./i, what: '楽天のアフィリエイトID（applicationId ではない）' },
+]
+
+function foreignKeyHint(value) {
+  return FOREIGN_KEY_HINTS.find((h) => h.re.test(value))?.what ?? null
+}
+
 async function check(value) {
   const url = `${ENDPOINT}?applicationId=${encodeURIComponent(value)}&keyword=${encodeURIComponent('化粧水')}&hits=1&format=json`
   try {
@@ -68,6 +83,8 @@ for (const [i, v] of targets.entries()) {
     winner ??= v
   } else {
     console.log(`❌ ${mask(v)}  →  ${r.why}`)
+    const hint = foreignKeyHint(v)
+    if (hint) console.log(`      ↳ この形は ${hint} です。楽天の値ではない可能性が高いです。`)
   }
 }
 
