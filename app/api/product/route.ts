@@ -32,8 +32,10 @@ const rakutenThrottle = createThrottle({ minIntervalMs: 1100, maxWaitMs: 2500 })
 
 // 楽天がキーを拒否したかどうか。設定ミスを画面で分かるようにするために持ち回る。
 // （キーが無効でも「候補ゼロ」としか見えないと、原因の切り分けができないため）
-export type KeyStatus = 'missing' | 'invalid' | 'ok'
+export type KeyStatus = 'missing' | 'invalid' | 'unavailable' | 'ok'
 let lastRakutenKeyStatus: KeyStatus = 'ok'
+// 直近の楽天エラー本文。キー不正と、楽天側の障害を区別するために持つ。
+let lastRakutenError: string | null = null
 
 // 外部APIが遅いときにこちらのリクエストを道連れにしない
 async function fetchJson(url: string, extraHeaders: Record<string, string> = {}): Promise<unknown | null> {
@@ -52,12 +54,14 @@ async function fetchJson(url: string, extraHeaders: Record<string, string> = {})
       return null
     }
     const json = await res.json()
-    // 現行APIは HTTP 200 でも本文にエラーを返すことがある
+    // 現行APIは HTTP 200 でも本文にエラーを返すため、res.ok では判定できない
     if (json && typeof json === 'object' && 'errors' in json) {
       const e = (json as { errors?: { errorCode?: number; errorMessage?: string } }).errors
       console.warn('楽天APIエラー:', e?.errorCode, e?.errorMessage)
+      lastRakutenError = `${e?.errorCode ?? ''} ${e?.errorMessage ?? ''}`.trim()
       return null
     }
+    lastRakutenError = null
     return json
   } catch {
     // タイムアウト・ネットワークエラーは「見つからなかった」と同じ扱いにする
@@ -79,7 +83,14 @@ async function fetchRakuten(url: string): Promise<unknown | null> {
   // fetchJson は !ok を null にするので、ここでは「応答があったのにエラー本文」の場合と
   // 「そもそも応答が無い」場合を区別できない。確実に判るよう、キー不正だけ別に取りに行く。
   if (json === null) {
-    lastRakutenKeyStatus = await probeKeyRejected(url) ? 'invalid' : 'ok'
+    if (lastRakutenError) {
+      // 認証情報そのものが拒否されたのか、楽天側が落ちているのかを分ける
+      lastRakutenKeyStatus = /applicationId|accessKey|invalid|unauthor/i.test(lastRakutenError)
+        ? 'invalid'
+        : 'unavailable'
+    } else {
+      lastRakutenKeyStatus = (await probeKeyRejected(url)) ? 'invalid' : 'unavailable'
+    }
     return null
   }
   lastRakutenKeyStatus = 'ok'

@@ -41,7 +41,9 @@ export default function CosmeticsPage() {
   const [remoteSuggestions, setRemoteSuggestions] = useState<LookedUpProduct[]>([])
   // 商品検索の設定状態。キーが拒否されているのに「候補ゼロ」としか見えないと
   // 原因が分からないので、画面に出す。
-  const [keyStatus, setKeyStatus] = useState<'missing' | 'invalid' | 'ok' | null>(null)
+  const [keyStatus, setKeyStatus] = useState<
+    'missing' | 'invalid' | 'unavailable' | 'ok' | null
+  >(null)
 
   useEffect(() => {
     hydrate()
@@ -91,7 +93,7 @@ export default function CosmeticsPage() {
         if (!res.ok) return
         const data = (await res.json()) as {
           products: LookedUpProduct[]
-          keyStatus?: 'missing' | 'invalid' | 'ok'
+          keyStatus?: 'missing' | 'invalid' | 'unavailable' | 'ok'
         }
         setRemoteSuggestions(data.products ?? [])
         setKeyStatus(data.keyStatus ?? null)
@@ -336,6 +338,12 @@ export default function CosmeticsPage() {
                     webservice.rakuten.co.jp/app/list の applicationId を
                     .env.local の RAKUTEN_APP_ID に設定して、開発サーバーを再起動してください。
                   </span>
+                </p>
+              )}
+              {keyStatus === 'unavailable' && (
+                <p className="text-xs text-muted leading-relaxed">
+                  商品検索が一時的に利用できません（楽天側のエラー）。
+                  候補はアプリ内の一覧だけになります。しばらくすると復旧します。
                 </p>
               )}
               {keyStatus === 'missing' && (
