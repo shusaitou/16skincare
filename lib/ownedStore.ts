@@ -63,6 +63,7 @@ export interface NewOwnedCosmetic {
   brand?: string
   tone?: CosmeticTone
   jan?: string
+  ingredients?: string[]
 }
 
 interface OwnedState {

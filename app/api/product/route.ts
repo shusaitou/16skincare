@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createThrottle } from '../../../lib/rateLimit'
 import {
+  DEFAULT_APP_ORIGIN,
   buildRakutenUrl,
   fromOpenBeautyFacts,
   fromRakuten,
@@ -29,11 +30,18 @@ const TIMEOUT_MS = 6000
 //    厳密にやるなら Redis 等の共有ストアが要る。
 const rakutenThrottle = createThrottle({ minIntervalMs: 1100, maxWaitMs: 2500 })
 
+// 楽天がキーを拒否したかどうか。設定ミスを画面で分かるようにするために持ち回る。
+// （キーが無効でも「候補ゼロ」としか見えないと、原因の切り分けができないため）
+export type KeyStatus = 'missing' | 'invalid' | 'unavailable' | 'ok'
+let lastRakutenKeyStatus: KeyStatus = 'ok'
+// 直近の楽天エラー本文。キー不正と、楽天側の障害を区別するために持つ。
+let lastRakutenError: string | null = null
+
 // 外部APIが遅いときにこちらのリクエストを道連れにしない
-async function fetchJson(url: string): Promise<unknown | null> {
+async function fetchJson(url: string, extraHeaders: Record<string, string> = {}): Promise<unknown | null> {
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': UA, Accept: 'application/json' },
+      headers: { 'User-Agent': UA, Accept: 'application/json', ...extraHeaders },
       signal: AbortSignal.timeout(TIMEOUT_MS),
       // 商品マスターは頻繁には変わらないので1日キャッシュする。
       // 同じ語で何度も叩かれても外部APIには行かないので、これ自体が制限対策になる。
@@ -45,19 +53,73 @@ async function fetchJson(url: string): Promise<unknown | null> {
       }
       return null
     }
-    return await res.json()
+    const json = await res.json()
+    // 現行APIは HTTP 200 でも本文にエラーを返すため、res.ok では判定できない
+    if (json && typeof json === 'object' && 'errors' in json) {
+      const e = (json as { errors?: { errorCode?: number; errorMessage?: string } }).errors
+      console.warn('楽天APIエラー:', e?.errorCode, e?.errorMessage)
+      lastRakutenError = `${e?.errorCode ?? ''} ${e?.errorMessage ?? ''}`.trim()
+      return null
+    }
+    lastRakutenError = null
+    return json
   } catch {
     // タイムアウト・ネットワークエラーは「見つからなかった」と同じ扱いにする
     return null
   }
 }
 
-// 楽天だけスロットルを通す（Open Beauty Facts はオープンデータで制限が緩い）
+// 楽天だけスロットルを通す（Open Beauty Facts はオープンデータで制限が緩い）。
+// 現行APIは呼び出し元URLを要求するので Origin を付ける。登録した
+// 「アプリケーションURL」と一致している必要があるため、環境変数で変えられるようにする。
 async function fetchRakuten(url: string): Promise<unknown | null> {
   const allowed = await rakutenThrottle.acquire()
   // 混んでいるときは待たせずに諦める。呼び出し側はアプリ内カタログで代替できる。
   if (!allowed) return null
-  return fetchJson(url)
+
+  const origin = process.env.RAKUTEN_APP_URL || DEFAULT_APP_ORIGIN
+  const json = await fetchJson(url, { Origin: origin, Referer: `${origin}/` })
+  // 楽天はキーが不正なとき HTTP 400 + {error:'wrong_parameter'} を返す。
+  // fetchJson は !ok を null にするので、ここでは「応答があったのにエラー本文」の場合と
+  // 「そもそも応答が無い」場合を区別できない。確実に判るよう、キー不正だけ別に取りに行く。
+  if (json === null) {
+    if (lastRakutenError) {
+      // 認証情報そのものが拒否されたのか、楽天側が落ちているのかを分ける
+      lastRakutenKeyStatus = /applicationId|accessKey|invalid|unauthor/i.test(lastRakutenError)
+        ? 'invalid'
+        : 'unavailable'
+    } else {
+      lastRakutenKeyStatus = (await probeKeyRejected(url)) ? 'invalid' : 'unavailable'
+    }
+    return null
+  }
+  lastRakutenKeyStatus = 'ok'
+  return json
+}
+
+// エラー本文を読んで、キーが拒否されたかを判定する
+async function probeKeyRejected(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': UA, Accept: 'application/json' },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+      cache: 'no-store',
+    })
+    if (res.ok) return false
+    const body = (await res.json()) as { error?: string; error_description?: string }
+    const rejected = /applicationId/i.test(body.error_description ?? '') || body.error === 'wrong_parameter'
+    if (rejected) {
+      console.warn('楽天APIがキーを拒否しました:', body.error, body.error_description)
+    }
+    return rejected
+  } catch {
+    return false
+  }
+}
+
+function keyStatus(): KeyStatus {
+  if (!process.env.RAKUTEN_APP_ID) return 'missing'
+  return lastRakutenKeyStatus
 }
 
 async function lookupByJan(jan: string): Promise<LookedUpProduct[]> {
@@ -73,7 +135,12 @@ async function lookupByJan(jan: string): Promise<LookedUpProduct[]> {
   if (!appId) return []
 
   const rakuten = await fetchRakuten(
-    buildRakutenUrl(appId, { keyword: jan, hits: 5, genreId: process.env.RAKUTEN_GENRE_ID })
+    buildRakutenUrl(appId, {
+      keyword: jan,
+      hits: 5,
+      genreId: process.env.RAKUTEN_GENRE_ID,
+      accessKey: process.env.RAKUTEN_ACCESS_KEY,
+    })
   )
   return rakuten ? fromRakuten(rakuten, 5) : []
 }
@@ -84,7 +151,12 @@ async function searchByKeyword(q: string): Promise<LookedUpProduct[]> {
   if (!appId) return []
 
   const json = await fetchRakuten(
-    buildRakutenUrl(appId, { keyword: q, hits: 10, genreId: process.env.RAKUTEN_GENRE_ID })
+    buildRakutenUrl(appId, {
+      keyword: q,
+      hits: 10,
+      genreId: process.env.RAKUTEN_GENRE_ID,
+      accessKey: process.env.RAKUTEN_ACCESS_KEY,
+    })
   )
   return json ? fromRakuten(json, 10) : []
 }
@@ -99,16 +171,16 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'JAN コードの形式が正しくありません' }, { status: 400 })
     }
     const products = await lookupByJan(jan)
-    return NextResponse.json({ products, configured: Boolean(process.env.RAKUTEN_APP_ID) })
+    return NextResponse.json({ products, configured: Boolean(process.env.RAKUTEN_APP_ID), keyStatus: keyStatus() })
   }
 
   if (q) {
     if (q.length < 2) {
       // 1文字だと候補が多すぎて役に立たないので、外部APIを叩かない
-      return NextResponse.json({ products: [], configured: Boolean(process.env.RAKUTEN_APP_ID) })
+      return NextResponse.json({ products: [], configured: Boolean(process.env.RAKUTEN_APP_ID), keyStatus: keyStatus() })
     }
     const products = await searchByKeyword(q)
-    return NextResponse.json({ products, configured: Boolean(process.env.RAKUTEN_APP_ID) })
+    return NextResponse.json({ products, configured: Boolean(process.env.RAKUTEN_APP_ID), keyStatus: keyStatus() })
   }
 
   return NextResponse.json({ error: 'jan または q を指定してください' }, { status: 400 })

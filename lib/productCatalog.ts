@@ -26,14 +26,26 @@ const COMMON_BRANDS = [
   'ちふれ化粧品', 'メイベリン', 'ロレアルパリ', 'レブロン',
   // アイメイク特化
   'ヒロインメイク', 'デジャヴュ', 'ラブ・ライナー', 'UZU', 'フローフシ',
-  // 韓国コスメ
+  // 韓国コスメ（メイク）
   'rom&nd', 'CLIO', 'ペリペラ', 'ETUDE', 'イニスフリー', 'MISSHA', 'the SAEM', 'ラネージュ',
-  'TIRTIR', 'AMUSE',
+  'TIRTIR', 'AMUSE', 'HERA', '3CE', 'hince', 'dasique', 'lilybyred', 'MERZY', 'espoir',
+  'JUNG SAEM MOOL', 'holika holika', 'A’pieu',
+  // 韓国コスメ（スキンケア）
+  'COSRX', 'Anua', 'VT', 'Torriden', 'SKIN1004', 'numbuzin', 'Dr.G', 'ma:nyo', 'AESTURA',
+  'medicube', 'Abib', 'ISNTREE', 'BEAUTY OF JOSEON', 'SOME BY MI',
   // メンズ
-  'ウーノ', 'GATSBY', 'ルシード', 'ニベアメン', 'BULK HOMME',
+  'ウーノ', 'GATSBY', 'ルシード', 'ニベアメン', 'BULK HOMME', 'NULL', 'ORBIS Mr.',
+  // 国内メイク
+  'RMK', 'THREE', 'LUNASOL', 'ETVOS', 'ONLY MINERALS', 'MiMC', 'SNIDEL BEAUTY', 'CipiCipi',
+  'FASIO', 'AUBE', 'to/one', '&be', 'デイジーク',
+  // 国内スキンケア
+  'HAKU', 'SK-II', 'IPSA', 'ALBION', 'SOFINA iP', 'TSUBAKI', 'SANA', 'なめらか本舗',
+  'ロゼット', 'メンソレータム', 'MINON', '雪肌精',
   // デパコス
   'ポール & ジョー', 'SUQQU', 'ADDICTION', 'セルヴォーク', 'NARS', 'M・A・C', 'DIOR', 'CHANEL',
-  'イヴ・サンローラン', 'ジルスチュアート', 'クリニーク',
+  'イヴ・サンローラン', 'ジルスチュアート', 'クリニーク', 'DECORTÉ', 'クレ・ド・ポー ボーテ',
+  'エレガンス', 'LANCOME', 'SHISEIDO', 'BOBBI BROWN', 'shu uemura', 'LAURA MERCIER',
+  'CHARLOTTE TILBURY', 'rare beauty', 'FENTY BEAUTY',
 ]
 
 /**
@@ -134,6 +146,29 @@ export function filterByQuery<T>(items: T[], query: string, textOf: (item: T) =>
 // ブランド名を絞り込む
 export function searchBrands(query: string, owned: OwnedCosmetic[] = [], limit = 8): string[] {
   return filterByQuery(brandCandidates(owned), query, (b) => b).slice(0, limit)
+}
+
+/**
+ * 商品検索の結果から「入力されたブランドが実在するか」を確認する。
+ *
+ * 楽天のレスポンスには「ブランド」項目が無いので、ブランド候補を**生成**することはできない。
+ * しかし商品名の中にはブランド名が入っているので、
+ *   「ユーザーが打った文字列を含む商品が実在するか」
+ * は確認できる。生成ではなく検証なので、存在しないブランドを出す心配がない。
+ *
+ * 戻り値は、確認できた場合のみ「打った文字列」と件数。確認できなければ null。
+ */
+export function verifyBrandFromProducts(
+  query: string,
+  productNames: string[]
+): { brand: string; matchCount: number } | null {
+  const q = normalizeJa(query)
+  if (q.length === 0) return null
+
+  const matchCount = productNames.filter((n) => normalizeJa(n).includes(q)).length
+  if (matchCount === 0) return null
+
+  return { brand: query.trim(), matchCount }
 }
 
 // 製品名を絞り込む

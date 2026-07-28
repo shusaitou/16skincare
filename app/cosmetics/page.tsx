@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useOwnedStore, ownedLabel, type NewOwnedCosmetic } from '../../lib/ownedStore'
 import { allProductCategories, isColorSensitive } from '../../lib/substitution'
-import { searchBrands, searchProducts } from '../../lib/productCatalog'
+import { searchBrands, searchProducts, verifyBrandFromProducts } from '../../lib/productCatalog'
 import { colorLabel } from '../../lib/recommend'
 import type { LookedUpProduct } from '../../lib/productLookup'
 import AutocompleteInput from '../../components/AutocompleteInput'
@@ -39,16 +39,27 @@ export default function CosmeticsPage() {
   const [lookup, setLookup] = useState<{ loading: boolean; error?: string }>({ loading: false })
   // 外部APIの候補（楽天）。アプリ内カタログの候補と混ぜて出す。
   const [remoteSuggestions, setRemoteSuggestions] = useState<LookedUpProduct[]>([])
+  // 商品検索の設定状態。キーが拒否されているのに「候補ゼロ」としか見えないと
+  // 原因が分からないので、画面に出す。
+  const [keyStatus, setKeyStatus] = useState<
+    'missing' | 'invalid' | 'unavailable' | 'ok' | null
+  >(null)
 
   useEffect(() => {
     hydrate()
   }, [hydrate])
 
   // --- 入力補完 ---
-  const brandSuggestions = useMemo(
-    () => searchBrands(form.brand ?? '', items).map((b) => ({ value: b })),
-    [form.brand, items]
-  )
+  // 一覧に無いブランドを打ったとき、商品検索でその名前の商品が実在するか確認する。
+  // 候補を「生成」するのではなく「検証」するので、存在しないブランドは出ない。
+  const [brandCheck, setBrandCheck] = useState<{ brand: string; matchCount: number } | null>(null)
+
+  const brandSuggestions = useMemo(() => {
+    const local = searchBrands(form.brand ?? '', items).map((b) => ({ value: b }))
+    if (local.length > 0 || !brandCheck) return local
+    // 一覧に無いが実在が確認できた場合だけ、件数を添えて候補に出す
+    return [{ value: brandCheck.brand, hint: `商品${brandCheck.matchCount}件を確認` }]
+  }, [form.brand, items, brandCheck])
   const localMatches = useMemo(
     () =>
       searchProducts(form.name ?? '', {
@@ -80,8 +91,12 @@ export default function CosmeticsPage() {
       try {
         const res = await fetch(`/api/product?q=${encodeURIComponent(q)}`)
         if (!res.ok) return
-        const data = (await res.json()) as { products: LookedUpProduct[] }
+        const data = (await res.json()) as {
+          products: LookedUpProduct[]
+          keyStatus?: 'missing' | 'invalid' | 'unavailable' | 'ok'
+        }
         setRemoteSuggestions(data.products ?? [])
+        setKeyStatus(data.keyStatus ?? null)
       } catch {
         // 外部APIが落ちていてもアプリ内候補だけで動く
         setRemoteSuggestions([])
@@ -89,6 +104,27 @@ export default function CosmeticsPage() {
     }, 800)
     return () => clearTimeout(timer)
   }, [form.name])
+
+  // ブランドが一覧に無いときだけ、商品検索で実在を確認する。
+  // 一覧で足りているなら外部APIを叩かない（レート制限を無駄に使わない）。
+  useEffect(() => {
+    const q = (form.brand ?? '').trim()
+    if (q.length < 2 || searchBrands(q, items).length > 0) {
+      setBrandCheck(null)
+      return
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/product?q=${encodeURIComponent(q)}`)
+        if (!res.ok) return
+        const data = (await res.json()) as { products: LookedUpProduct[] }
+        setBrandCheck(verifyBrandFromProducts(q, (data.products ?? []).map((p) => p.name)))
+      } catch {
+        setBrandCheck(null)
+      }
+    }, 800)
+    return () => clearTimeout(timer)
+  }, [form.brand, items])
 
   // --- バーコード ---
   const handleDetect = useCallback(
@@ -119,13 +155,16 @@ export default function CosmeticsPage() {
           name: hit.name,
           brand: hit.brand,
           jan: hit.jan ?? jan,
+          // 全成分が取れた場合は保存しておき、注目成分の照合に使う
+          ingredients: hit.ingredients,
         })
         setShowForm(true)
         setLookup({ loading: false })
+        const ing = hit.ingredients?.length ? `全成分${hit.ingredients.length}件も取得しました。` : ''
         setMessage(
-          hit.category
+          (hit.category
             ? `「${hit.name}」が見つかりました。内容を確認して追加してください。`
-            : `「${hit.name}」が見つかりました。カテゴリだけ選んでください。`
+            : `「${hit.name}」が見つかりました。カテゴリだけ選んでください。`) + ing
         )
       } catch {
         setLookup({ loading: false, error: '商品の照会に失敗しました。手入力で追加してください。' })
@@ -246,7 +285,7 @@ export default function CosmeticsPage() {
                   onChange={(brand) => setForm((f) => ({ ...f, brand }))}
                   suggestions={brandSuggestions}
                   placeholder="例: ナチュリエ（「なちゅりえ」でも可）"
-                  help="一覧に無いブランドもそのまま入力できます。"
+                  help="一覧に無いブランドは、商品検索で実在を確認できたときだけ候補に出ます。確認できなくてもそのまま入力できます。"
                 />
                 <AutocompleteInput
                   label="製品名（任意）"
@@ -289,6 +328,28 @@ export default function CosmeticsPage() {
 
               {form.jan && (
                 <p className="text-xs text-muted">バーコード: {form.jan}</p>
+              )}
+
+              {keyStatus === 'invalid' && (
+                <p className="text-sm text-ink bg-accent-soft border border-accent/30 rounded-sm p-3 leading-relaxed">
+                  商品検索の APIキーが楽天に拒否されています。候補はアプリ内の一覧だけになります。
+                  <br />
+                  <span className="text-muted">
+                    webservice.rakuten.co.jp/app/list の applicationId を
+                    .env.local の RAKUTEN_APP_ID に設定して、開発サーバーを再起動してください。
+                  </span>
+                </p>
+              )}
+              {keyStatus === 'unavailable' && (
+                <p className="text-xs text-muted leading-relaxed">
+                  商品検索が一時的に利用できません（楽天側のエラー）。
+                  候補はアプリ内の一覧だけになります。しばらくすると復旧します。
+                </p>
+              )}
+              {keyStatus === 'missing' && (
+                <p className="text-xs text-muted leading-relaxed">
+                  商品検索は未設定です（候補はアプリ内の一覧のみ）。RAKUTEN_APP_ID を設定すると候補が増えます。
+                </p>
               )}
 
               <button

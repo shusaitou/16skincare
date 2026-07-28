@@ -7,10 +7,14 @@
 //
 // キーワード推定は誤ることがある前提で、UI 側では必ずユーザーが確認・修正できるようにする。
 
+import { parseIngredientList } from './ingredients'
+
 export interface LookedUpProduct {
   jan?: string
   name: string
   brand?: string
+  // 全成分表示（Open Beauty Facts から取れた場合のみ）。楽天は成分を返さない。
+  ingredients?: string[]
   // 推定できた場合のみ。できなければ UI でユーザーに選んでもらう
   category?: string
   source: 'rakuten' | 'openbeautyfacts'
@@ -70,7 +74,20 @@ export function inferCategory(name: string): string | undefined {
 
 // --- 楽天市場 商品検索API ---------------------------------------------------
 
-export const RAKUTEN_ENDPOINT = 'https://app.rakuten.co.jp/services/api/IchibaItem/Search/20220601'
+// 楽天ウェブサービスの現行エンドポイント。
+// 旧 app.rakuten.co.jp/services/api/... は、現在発行されるアプリの資格情報
+// （UUID の applicationId ＋ pk_ のアクセスキー）を受け付けず
+// wrong_parameter で弾かれる。公式のAPIテストフォームが使っているのはこちら。
+//   host     : https://openapi.rakuten.co.jp/
+//   basePath : ichibams/api/
+//   path     : IchibaItem/Search/
+//   version  : 20260701
+export const RAKUTEN_ENDPOINT =
+  'https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701'
+
+// 現行APIは呼び出し元の URL（登録した「アプリケーションURL」）を要求する。
+// 送らないと 403 REQUEST_CONTEXT_BODY_HTTP_REFERRER_MISSING になる。
+export const DEFAULT_APP_ORIGIN = 'http://localhost:3000'
 
 // 楽天のジャンルID「美容・コスメ・香水」。
 // これを付けないと、バーコードやキーワードによっては食品や日用品まで返ってくる。
@@ -82,13 +99,20 @@ export const DEFAULT_COSMETICS_GENRE_ID = '100939'
 
 /**
  * 楽天の検索URLを組み立てる。
- * **必ずジャンル制限を掛ける**のがこの関数の役目。
- * URLを直に書くとジャンル指定を付け忘れる（実際に一度やらかした）ので、
- * 組み立てを1か所に集約している。
+ *
+ * 役目が2つある。
+ *  1. **必ずジャンル制限を掛ける**（付け忘れるとコスメ以外が候補に出る）
+ *  2. **applicationId と accessKey を両方載せる**
+ *
+ * 現在の楽天ウェブサービスは、アプリごとに
+ *   アプリケーションID … UUID形式（例: ec65ace1-9e87-4d23-83e4-...）
+ *   アクセスキー       … pk_ で始まる文字列
+ * の2つを発行し、公式のAPIテストフォームもこの両方をクエリに載せている。
+ * applicationId だけだと wrong_parameter で弾かれる。
  */
 export function buildRakutenUrl(
   appId: string,
-  params: { keyword: string; hits?: number; genreId?: string }
+  params: { keyword: string; hits?: number; genreId?: string; accessKey?: string }
 ): string {
   const query = new URLSearchParams({
     applicationId: appId,
@@ -97,6 +121,7 @@ export function buildRakutenUrl(
     format: 'json',
     genreId: params.genreId || DEFAULT_COSMETICS_GENRE_ID,
   })
+  if (params.accessKey) query.set('accessKey', params.accessKey)
   return `${RAKUTEN_ENDPOINT}?${query.toString()}`
 }
 
@@ -139,6 +164,8 @@ export interface OpenBeautyFactsProduct {
   product_name?: string
   product_name_ja?: string
   brands?: string
+  ingredients_text?: string
+  ingredients_text_ja?: string
 }
 
 export interface OpenBeautyFactsResponse {
@@ -160,11 +187,14 @@ export function fromOpenBeautyFacts(json: OpenBeautyFactsResponse): LookedUpProd
     .map((b) => b.trim())
     .filter(Boolean)
 
+  const ingredients = parseIngredientList(p.ingredients_text_ja || p.ingredients_text || '')
+
   return {
     jan: p.code,
     name,
     brand: brands.length > 0 ? brands[brands.length - 1] : undefined,
     category: inferCategory(name),
+    ingredients: ingredients.length > 0 ? ingredients : undefined,
     source: 'openbeautyfacts',
   }
 }

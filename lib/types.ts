@@ -148,6 +148,9 @@ export interface OwnedCosmetic {
   tone?: CosmeticTone
   // バーコードから登録した場合の JAN コード（再取得・重複判定に使う）
   jan?: string
+  // 全成分表示（バーコード登録時に取得できた場合のみ）。
+  // 手順の「注目成分」が入っているかの照合に使う。
+  ingredients?: string[]
   created_at: string // ISO8601
 }
 

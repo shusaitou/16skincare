@@ -90,6 +90,13 @@ describe('inferCategory', () => {
 })
 
 describe('buildRakutenUrl', () => {
+  it('現行のエンドポイント（openapi.rakuten.co.jp）を使う', () => {
+    // 旧 app.rakuten.co.jp は現在発行される資格情報を受け付けない
+    const url = new URL(buildRakutenUrl('APPID', { keyword: 'x' }))
+    expect(url.host).toBe('openapi.rakuten.co.jp')
+    expect(url.pathname).toContain('IchibaItem/Search')
+  })
+
   // ジャンル制限の付け忘れ（= コスメ以外の商品が候補に出る）を防ぐためのテスト。
   // 実際に JAN 照会側で付け忘れていたので、ここで固定する。
   it('必ず化粧品ジャンルに絞る', () => {
@@ -112,6 +119,17 @@ describe('buildRakutenUrl', () => {
   it('空文字の上書きは既定値に落とす（誤って全ジャンルにしない）', () => {
     const url = new URL(buildRakutenUrl('APPID', { keyword: 'x', genreId: '' }))
     expect(url.searchParams.get('genreId')).toBe(DEFAULT_COSMETICS_GENRE_ID)
+  })
+
+  it('accessKey を渡すとクエリに載る（現在の楽天は2つの値が必要）', () => {
+    const url = new URL(buildRakutenUrl('APPID', { keyword: 'x', accessKey: 'pk_test123' }))
+    expect(url.searchParams.get('applicationId')).toBe('APPID')
+    expect(url.searchParams.get('accessKey')).toBe('pk_test123')
+  })
+
+  it('accessKey が無ければクエリに載せない（未設定でも壊さない）', () => {
+    const url = new URL(buildRakutenUrl('APPID', { keyword: 'x' }))
+    expect(url.searchParams.has('accessKey')).toBe(false)
   })
 
   it('アプリIDとキーワードを正しくエスケープする', () => {
