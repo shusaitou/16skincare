@@ -90,6 +90,13 @@ describe('inferCategory', () => {
 })
 
 describe('buildRakutenUrl', () => {
+  it('現行のエンドポイント（openapi.rakuten.co.jp）を使う', () => {
+    // 旧 app.rakuten.co.jp は現在発行される資格情報を受け付けない
+    const url = new URL(buildRakutenUrl('APPID', { keyword: 'x' }))
+    expect(url.host).toBe('openapi.rakuten.co.jp')
+    expect(url.pathname).toContain('IchibaItem/Search')
+  })
+
   // ジャンル制限の付け忘れ（= コスメ以外の商品が候補に出る）を防ぐためのテスト。
   // 実際に JAN 照会側で付け忘れていたので、ここで固定する。
   it('必ず化粧品ジャンルに絞る', () => {

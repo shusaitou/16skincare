@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createThrottle } from '../../../lib/rateLimit'
 import {
+  DEFAULT_APP_ORIGIN,
   buildRakutenUrl,
   fromOpenBeautyFacts,
   fromRakuten,
@@ -35,10 +36,10 @@ export type KeyStatus = 'missing' | 'invalid' | 'ok'
 let lastRakutenKeyStatus: KeyStatus = 'ok'
 
 // 外部APIが遅いときにこちらのリクエストを道連れにしない
-async function fetchJson(url: string): Promise<unknown | null> {
+async function fetchJson(url: string, extraHeaders: Record<string, string> = {}): Promise<unknown | null> {
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': UA, Accept: 'application/json' },
+      headers: { 'User-Agent': UA, Accept: 'application/json', ...extraHeaders },
       signal: AbortSignal.timeout(TIMEOUT_MS),
       // 商品マスターは頻繁には変わらないので1日キャッシュする。
       // 同じ語で何度も叩かれても外部APIには行かないので、これ自体が制限対策になる。
@@ -50,20 +51,30 @@ async function fetchJson(url: string): Promise<unknown | null> {
       }
       return null
     }
-    return await res.json()
+    const json = await res.json()
+    // 現行APIは HTTP 200 でも本文にエラーを返すことがある
+    if (json && typeof json === 'object' && 'errors' in json) {
+      const e = (json as { errors?: { errorCode?: number; errorMessage?: string } }).errors
+      console.warn('楽天APIエラー:', e?.errorCode, e?.errorMessage)
+      return null
+    }
+    return json
   } catch {
     // タイムアウト・ネットワークエラーは「見つからなかった」と同じ扱いにする
     return null
   }
 }
 
-// 楽天だけスロットルを通す（Open Beauty Facts はオープンデータで制限が緩い）
+// 楽天だけスロットルを通す（Open Beauty Facts はオープンデータで制限が緩い）。
+// 現行APIは呼び出し元URLを要求するので Origin を付ける。登録した
+// 「アプリケーションURL」と一致している必要があるため、環境変数で変えられるようにする。
 async function fetchRakuten(url: string): Promise<unknown | null> {
   const allowed = await rakutenThrottle.acquire()
   // 混んでいるときは待たせずに諦める。呼び出し側はアプリ内カタログで代替できる。
   if (!allowed) return null
 
-  const json = await fetchJson(url)
+  const origin = process.env.RAKUTEN_APP_URL || DEFAULT_APP_ORIGIN
+  const json = await fetchJson(url, { Origin: origin, Referer: `${origin}/` })
   // 楽天はキーが不正なとき HTTP 400 + {error:'wrong_parameter'} を返す。
   // fetchJson は !ok を null にするので、ここでは「応答があったのにエラー本文」の場合と
   // 「そもそも応答が無い」場合を区別できない。確実に判るよう、キー不正だけ別に取りに行く。

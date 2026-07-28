@@ -74,7 +74,20 @@ export function inferCategory(name: string): string | undefined {
 
 // --- 楽天市場 商品検索API ---------------------------------------------------
 
-export const RAKUTEN_ENDPOINT = 'https://app.rakuten.co.jp/services/api/IchibaItem/Search/20220601'
+// 楽天ウェブサービスの現行エンドポイント。
+// 旧 app.rakuten.co.jp/services/api/... は、現在発行されるアプリの資格情報
+// （UUID の applicationId ＋ pk_ のアクセスキー）を受け付けず
+// wrong_parameter で弾かれる。公式のAPIテストフォームが使っているのはこちら。
+//   host     : https://openapi.rakuten.co.jp/
+//   basePath : ichibams/api/
+//   path     : IchibaItem/Search/
+//   version  : 20260701
+export const RAKUTEN_ENDPOINT =
+  'https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701'
+
+// 現行APIは呼び出し元の URL（登録した「アプリケーションURL」）を要求する。
+// 送らないと 403 REQUEST_CONTEXT_BODY_HTTP_REFERRER_MISSING になる。
+export const DEFAULT_APP_ORIGIN = 'http://localhost:3000'
 
 // 楽天のジャンルID「美容・コスメ・香水」。
 // これを付けないと、バーコードやキーワードによっては食品や日用品まで返ってくる。

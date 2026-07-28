@@ -20,7 +20,9 @@
  */
 import { readFileSync } from 'node:fs'
 
-const ENDPOINT = 'https://app.rakuten.co.jp/services/api/IchibaItem/Search/20220601'
+const ENDPOINT = 'https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701'
+// 現行APIは呼び出し元URL（登録した「アプリケーションURL」）を要求する
+const ORIGIN = process.env.RAKUTEN_APP_URL || 'http://localhost:3000'
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 const mask = (v) => (v.length <= 10 ? '****' : `${v.slice(0, 4)}…${v.slice(-4)} (${v.length}文字)`)
@@ -59,8 +61,17 @@ async function check(value, accessKey) {
   if (accessKey) q.set('accessKey', accessKey)
   const url = `${ENDPOINT}?${q.toString()}`
   try {
-    const res = await fetch(url, { headers: { 'User-Agent': '16skincare-keycheck/1.0' } })
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': '16skincare-keycheck/1.0',
+        Origin: ORIGIN,
+        Referer: `${ORIGIN}/`,
+      },
+    })
     const body = await res.json()
+    if (body.errors) {
+      return { ok: false, why: `${body.errors.errorCode}: ${body.errors.errorMessage ?? ''}`.trim() }
+    }
     if (body.error) {
       return { ok: false, why: `${body.error}: ${body.error_description ?? ''}`.trim() }
     }
@@ -109,6 +120,7 @@ const attempts = accessKey
   : [{ label: 'applicationId のみ', id: appId, key: undefined }]
 
 let winner = null
+const reasons = []
 for (const [i, a] of attempts.entries()) {
   if (i > 0) await sleep(1500)
   const r = await check(a.id, a.key)
@@ -118,6 +130,7 @@ for (const [i, a] of attempts.entries()) {
     winner ??= a
   } else {
     console.log(`❌ ${a.label}  →  ${r.why}`)
+    reasons.push(r.why)
     const hint = foreignKeyHint(a.id)
     if (hint) {
       console.log(`      ↳ この形は ${hint} です。`)
@@ -135,6 +148,12 @@ if (winner) {
   console.log(`  RAKUTEN_APP_ID=${winner.id}`)
   if (winner.key) console.log(`  RAKUTEN_ACCESS_KEY=${winner.key}`)
   console.log('設定後、開発サーバーを再起動（Ctrl+C → npm run dev）してください。')
+} else if (reasons.some((w) => w.includes('503') || w.includes('Authentication service'))) {
+  // 値の形式・組み合わせ・呼び出し元URLはすべて通っていて、楽天側の認証サービスが落ちている。
+  console.log('値と呼び出し方は正しく、楽天側の認証サービスがエラーを返しています（503）。')
+  console.log('しばらく待って再実行してください。続く場合は次を確認:')
+  console.log(`  - 登録した「アプリケーションURL」と、呼び出し元(${ORIGIN})が一致しているか`)
+  console.log('  - アプリが「有効」状態か（有効期限切れでないか）')
 } else {
   console.log('どちらの組み合わせも通りませんでした。')
   console.log('https://webservice.rakuten.co.jp/app/list の「詳細を見る」を開き、')

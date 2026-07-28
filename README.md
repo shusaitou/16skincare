@@ -107,8 +107,16 @@ npm run dev
     絞らないと、コスメ以外のバーコード（お菓子など）やキーワードで
     無関係な商品が候補に出る。URLを直書きすると付け忘れるため、
     組み立てを1関数に集約し、テストでジャンル指定を固定している。
-  - 楽天は**アプリごとに2つの値**を発行し、APIには**両方必要**。片方だけだと
-    `wrong_parameter: specify valid applicationId` で弾かれる。
+  - **エンドポイントは `openapi.rakuten.co.jp`**（`lib/productLookup.ts`）。
+    旧 `app.rakuten.co.jp/services/api/...` は、現在発行される資格情報を受け付けず
+    `wrong_parameter` で弾かれる。公式のAPIテストフォームが使っているのが現行の方。
+  - **呼び出し元URLが必要**。`Origin`/`Referer` を送らないと
+    `403 REQUEST_CONTEXT_BODY_HTTP_REFERRER_MISSING` になる。
+    楽天に登録した「アプリケーションURL」と一致させる必要があるので、
+    `RAKUTEN_APP_URL` で設定する（既定 `http://localhost:3000`）。
+    **本番では登録URLをデプロイ先に変更し、この環境変数も合わせること。**
+  - 楽天は**アプリごとに2つの値**を発行し、APIには**両方必要**。
+    accessKey が無いと `400 accessKey must be present as a query parameter or in the header`。
     - `RAKUTEN_APP_ID` … 管理画面の「アプリケーションID」。**UUID形式**（8-4-4-4-12）
     - `RAKUTEN_ACCESS_KEY` … 管理画面の「アクセスキー」。**`pk_` で始まる**文字列
     - 「アフィリエイトID」（ドット区切り）は別物で、これではない
