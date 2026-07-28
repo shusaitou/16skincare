@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  verifyBrandFromProducts,
   brandCandidates,
   catalogProducts,
   filterByQuery,
@@ -159,5 +160,55 @@ describe('searchProducts', () => {
 
   it('件数を制限できる', () => {
     expect(searchProducts('', {}, 3).length).toBeLessThanOrEqual(3)
+  })
+})
+
+describe('verifyBrandFromProducts — 生成ではなく実在確認', () => {
+  it('打った文字列を含む商品があれば、そのブランドを候補にする', () => {
+    const r = verifyBrandFromProducts('HERA', [
+      'HERA ブラッククッション SPF34',
+      'HERA センシュアルスパイシーヌードグロス',
+      '無関係な商品',
+    ])
+    expect(r).toEqual({ brand: 'HERA', matchCount: 2 })
+  })
+
+  it('ひらがな入力でもカタカナの商品名に当たる', () => {
+    expect(verifyBrandFromProducts('びおれ', ['ビオレ うるおいジェリー'])?.matchCount).toBe(1)
+  })
+
+  it('商品が1件も無ければ候補にしない（存在しないブランドを出さない）', () => {
+    expect(verifyBrandFromProducts('架空ブランドZZZ', ['ビオレ 洗顔'])).toBeNull()
+  })
+
+  it('検索結果が空なら null', () => {
+    expect(verifyBrandFromProducts('HERA', [])).toBeNull()
+  })
+
+  it('空入力は null', () => {
+    expect(verifyBrandFromProducts('', ['何かの商品'])).toBeNull()
+  })
+
+  it('打った文字列をそのまま返す（勝手に変形しない）', () => {
+    expect(verifyBrandFromProducts(' HERA ', ['HERA クッション'])?.brand).toBe('HERA')
+  })
+})
+
+describe('拡充したブランド一覧', () => {
+  it('韓国コスメの主要ブランドを含む', () => {
+    const b = brandCandidates()
+    for (const x of ['HERA', '3CE', 'COSRX', 'Anua', 'rom&nd']) {
+      expect(b, x).toContain(x)
+    }
+  })
+
+  it('ひらがな/英字どちらでも引ける', () => {
+    expect(searchBrands('hera')).toContain('HERA')
+    expect(searchBrands('こすあーるえっくす').length).toBeGreaterThanOrEqual(0)
+  })
+
+  it('重複が無い', () => {
+    const b = brandCandidates()
+    expect(new Set(b).size).toBe(b.length)
   })
 })

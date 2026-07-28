@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useOwnedStore, ownedLabel, type NewOwnedCosmetic } from '../../lib/ownedStore'
 import { allProductCategories, isColorSensitive } from '../../lib/substitution'
-import { searchBrands, searchProducts } from '../../lib/productCatalog'
+import { searchBrands, searchProducts, verifyBrandFromProducts } from '../../lib/productCatalog'
 import { colorLabel } from '../../lib/recommend'
 import type { LookedUpProduct } from '../../lib/productLookup'
 import AutocompleteInput from '../../components/AutocompleteInput'
@@ -45,10 +45,16 @@ export default function CosmeticsPage() {
   }, [hydrate])
 
   // --- 入力補完 ---
-  const brandSuggestions = useMemo(
-    () => searchBrands(form.brand ?? '', items).map((b) => ({ value: b })),
-    [form.brand, items]
-  )
+  // 一覧に無いブランドを打ったとき、商品検索でその名前の商品が実在するか確認する。
+  // 候補を「生成」するのではなく「検証」するので、存在しないブランドは出ない。
+  const [brandCheck, setBrandCheck] = useState<{ brand: string; matchCount: number } | null>(null)
+
+  const brandSuggestions = useMemo(() => {
+    const local = searchBrands(form.brand ?? '', items).map((b) => ({ value: b }))
+    if (local.length > 0 || !brandCheck) return local
+    // 一覧に無いが実在が確認できた場合だけ、件数を添えて候補に出す
+    return [{ value: brandCheck.brand, hint: `商品${brandCheck.matchCount}件を確認` }]
+  }, [form.brand, items, brandCheck])
   const localMatches = useMemo(
     () =>
       searchProducts(form.name ?? '', {
@@ -89,6 +95,27 @@ export default function CosmeticsPage() {
     }, 800)
     return () => clearTimeout(timer)
   }, [form.name])
+
+  // ブランドが一覧に無いときだけ、商品検索で実在を確認する。
+  // 一覧で足りているなら外部APIを叩かない（レート制限を無駄に使わない）。
+  useEffect(() => {
+    const q = (form.brand ?? '').trim()
+    if (q.length < 2 || searchBrands(q, items).length > 0) {
+      setBrandCheck(null)
+      return
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/product?q=${encodeURIComponent(q)}`)
+        if (!res.ok) return
+        const data = (await res.json()) as { products: LookedUpProduct[] }
+        setBrandCheck(verifyBrandFromProducts(q, (data.products ?? []).map((p) => p.name)))
+      } catch {
+        setBrandCheck(null)
+      }
+    }, 800)
+    return () => clearTimeout(timer)
+  }, [form.brand, items])
 
   // --- バーコード ---
   const handleDetect = useCallback(
@@ -249,7 +276,7 @@ export default function CosmeticsPage() {
                   onChange={(brand) => setForm((f) => ({ ...f, brand }))}
                   suggestions={brandSuggestions}
                   placeholder="例: ナチュリエ（「なちゅりえ」でも可）"
-                  help="一覧に無いブランドもそのまま入力できます。"
+                  help="一覧に無いブランドは、商品検索で実在を確認できたときだけ候補に出ます。確認できなくてもそのまま入力できます。"
                 />
                 <AutocompleteInput
                   label="製品名（任意）"
