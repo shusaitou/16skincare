@@ -29,6 +29,11 @@ const TIMEOUT_MS = 6000
 //    厳密にやるなら Redis 等の共有ストアが要る。
 const rakutenThrottle = createThrottle({ minIntervalMs: 1100, maxWaitMs: 2500 })
 
+// 楽天がキーを拒否したかどうか。設定ミスを画面で分かるようにするために持ち回る。
+// （キーが無効でも「候補ゼロ」としか見えないと、原因の切り分けができないため）
+export type KeyStatus = 'missing' | 'invalid' | 'ok'
+let lastRakutenKeyStatus: KeyStatus = 'ok'
+
 // 外部APIが遅いときにこちらのリクエストを道連れにしない
 async function fetchJson(url: string): Promise<unknown | null> {
   try {
@@ -57,7 +62,42 @@ async function fetchRakuten(url: string): Promise<unknown | null> {
   const allowed = await rakutenThrottle.acquire()
   // 混んでいるときは待たせずに諦める。呼び出し側はアプリ内カタログで代替できる。
   if (!allowed) return null
-  return fetchJson(url)
+
+  const json = await fetchJson(url)
+  // 楽天はキーが不正なとき HTTP 400 + {error:'wrong_parameter'} を返す。
+  // fetchJson は !ok を null にするので、ここでは「応答があったのにエラー本文」の場合と
+  // 「そもそも応答が無い」場合を区別できない。確実に判るよう、キー不正だけ別に取りに行く。
+  if (json === null) {
+    lastRakutenKeyStatus = await probeKeyRejected(url) ? 'invalid' : 'ok'
+    return null
+  }
+  lastRakutenKeyStatus = 'ok'
+  return json
+}
+
+// エラー本文を読んで、キーが拒否されたかを判定する
+async function probeKeyRejected(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': UA, Accept: 'application/json' },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+      cache: 'no-store',
+    })
+    if (res.ok) return false
+    const body = (await res.json()) as { error?: string; error_description?: string }
+    const rejected = /applicationId/i.test(body.error_description ?? '') || body.error === 'wrong_parameter'
+    if (rejected) {
+      console.warn('楽天APIがキーを拒否しました:', body.error, body.error_description)
+    }
+    return rejected
+  } catch {
+    return false
+  }
+}
+
+function keyStatus(): KeyStatus {
+  if (!process.env.RAKUTEN_APP_ID) return 'missing'
+  return lastRakutenKeyStatus
 }
 
 async function lookupByJan(jan: string): Promise<LookedUpProduct[]> {
@@ -99,16 +139,16 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'JAN コードの形式が正しくありません' }, { status: 400 })
     }
     const products = await lookupByJan(jan)
-    return NextResponse.json({ products, configured: Boolean(process.env.RAKUTEN_APP_ID) })
+    return NextResponse.json({ products, configured: Boolean(process.env.RAKUTEN_APP_ID), keyStatus: keyStatus() })
   }
 
   if (q) {
     if (q.length < 2) {
       // 1文字だと候補が多すぎて役に立たないので、外部APIを叩かない
-      return NextResponse.json({ products: [], configured: Boolean(process.env.RAKUTEN_APP_ID) })
+      return NextResponse.json({ products: [], configured: Boolean(process.env.RAKUTEN_APP_ID), keyStatus: keyStatus() })
     }
     const products = await searchByKeyword(q)
-    return NextResponse.json({ products, configured: Boolean(process.env.RAKUTEN_APP_ID) })
+    return NextResponse.json({ products, configured: Boolean(process.env.RAKUTEN_APP_ID), keyStatus: keyStatus() })
   }
 
   return NextResponse.json({ error: 'jan または q を指定してください' }, { status: 400 })

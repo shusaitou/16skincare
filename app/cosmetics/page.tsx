@@ -39,6 +39,9 @@ export default function CosmeticsPage() {
   const [lookup, setLookup] = useState<{ loading: boolean; error?: string }>({ loading: false })
   // 外部APIの候補（楽天）。アプリ内カタログの候補と混ぜて出す。
   const [remoteSuggestions, setRemoteSuggestions] = useState<LookedUpProduct[]>([])
+  // 商品検索の設定状態。キーが拒否されているのに「候補ゼロ」としか見えないと
+  // 原因が分からないので、画面に出す。
+  const [keyStatus, setKeyStatus] = useState<'missing' | 'invalid' | 'ok' | null>(null)
 
   useEffect(() => {
     hydrate()
@@ -86,8 +89,12 @@ export default function CosmeticsPage() {
       try {
         const res = await fetch(`/api/product?q=${encodeURIComponent(q)}`)
         if (!res.ok) return
-        const data = (await res.json()) as { products: LookedUpProduct[] }
+        const data = (await res.json()) as {
+          products: LookedUpProduct[]
+          keyStatus?: 'missing' | 'invalid' | 'ok'
+        }
         setRemoteSuggestions(data.products ?? [])
+        setKeyStatus(data.keyStatus ?? null)
       } catch {
         // 外部APIが落ちていてもアプリ内候補だけで動く
         setRemoteSuggestions([])
@@ -319,6 +326,22 @@ export default function CosmeticsPage() {
 
               {form.jan && (
                 <p className="text-xs text-muted">バーコード: {form.jan}</p>
+              )}
+
+              {keyStatus === 'invalid' && (
+                <p className="text-sm text-ink bg-accent-soft border border-accent/30 rounded-sm p-3 leading-relaxed">
+                  商品検索の APIキーが楽天に拒否されています。候補はアプリ内の一覧だけになります。
+                  <br />
+                  <span className="text-muted">
+                    webservice.rakuten.co.jp/app/list の applicationId を
+                    .env.local の RAKUTEN_APP_ID に設定して、開発サーバーを再起動してください。
+                  </span>
+                </p>
+              )}
+              {keyStatus === 'missing' && (
+                <p className="text-xs text-muted leading-relaxed">
+                  商品検索は未設定です（候補はアプリ内の一覧のみ）。RAKUTEN_APP_ID を設定すると候補が増えます。
+                </p>
               )}
 
               <button
