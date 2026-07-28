@@ -107,7 +107,13 @@ npm run dev
     絞らないと、コスメ以外のバーコード（お菓子など）やキーワードで
     無関係な商品が候補に出る。URLを直書きすると付け忘れるため、
     組み立てを1関数に集約し、テストでジャンル指定を固定している。
-  - `RAKUTEN_APP_ID` はサーバー側のみ（`NEXT_PUBLIC_` を付けない）。
+  - 楽天は**アプリごとに2つの値**を発行し、APIには**両方必要**。片方だけだと
+    `wrong_parameter: specify valid applicationId` で弾かれる。
+    - `RAKUTEN_APP_ID` … 管理画面の「アプリケーションID」。**UUID形式**（8-4-4-4-12）
+    - `RAKUTEN_ACCESS_KEY` … 管理画面の「アクセスキー」。**`pk_` で始まる**文字列
+    - 「アフィリエイトID」（ドット区切り）は別物で、これではない
+    - 判定に迷ったら `node scripts/check-rakuten-key.mjs <ID> <アクセスキー>`
+  - どちらもサーバー側のみ（`NEXT_PUBLIC_` を付けない）。
     **未設定でもアプリは動く** — JAN 照会は Open Beauty Facts が担当し、
     キーワード検索はアプリ内カタログだけになる。
 

@@ -113,7 +113,12 @@ async function lookupByJan(jan: string): Promise<LookedUpProduct[]> {
   if (!appId) return []
 
   const rakuten = await fetchRakuten(
-    buildRakutenUrl(appId, { keyword: jan, hits: 5, genreId: process.env.RAKUTEN_GENRE_ID })
+    buildRakutenUrl(appId, {
+      keyword: jan,
+      hits: 5,
+      genreId: process.env.RAKUTEN_GENRE_ID,
+      accessKey: process.env.RAKUTEN_ACCESS_KEY,
+    })
   )
   return rakuten ? fromRakuten(rakuten, 5) : []
 }
@@ -124,7 +129,12 @@ async function searchByKeyword(q: string): Promise<LookedUpProduct[]> {
   if (!appId) return []
 
   const json = await fetchRakuten(
-    buildRakutenUrl(appId, { keyword: q, hits: 10, genreId: process.env.RAKUTEN_GENRE_ID })
+    buildRakutenUrl(appId, {
+      keyword: q,
+      hits: 10,
+      genreId: process.env.RAKUTEN_GENRE_ID,
+      accessKey: process.env.RAKUTEN_ACCESS_KEY,
+    })
   )
   return json ? fromRakuten(json, 10) : []
 }

@@ -114,6 +114,17 @@ describe('buildRakutenUrl', () => {
     expect(url.searchParams.get('genreId')).toBe(DEFAULT_COSMETICS_GENRE_ID)
   })
 
+  it('accessKey を渡すとクエリに載る（現在の楽天は2つの値が必要）', () => {
+    const url = new URL(buildRakutenUrl('APPID', { keyword: 'x', accessKey: 'pk_test123' }))
+    expect(url.searchParams.get('applicationId')).toBe('APPID')
+    expect(url.searchParams.get('accessKey')).toBe('pk_test123')
+  })
+
+  it('accessKey が無ければクエリに載せない（未設定でも壊さない）', () => {
+    const url = new URL(buildRakutenUrl('APPID', { keyword: 'x' }))
+    expect(url.searchParams.has('accessKey')).toBe(false)
+  })
+
   it('アプリIDとキーワードを正しくエスケープする', () => {
     const url = new URL(buildRakutenUrl('APP&ID', { keyword: '化粧水 &' }))
     expect(url.searchParams.get('applicationId')).toBe('APP&ID')

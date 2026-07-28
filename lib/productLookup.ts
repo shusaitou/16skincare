@@ -86,13 +86,20 @@ export const DEFAULT_COSMETICS_GENRE_ID = '100939'
 
 /**
  * 楽天の検索URLを組み立てる。
- * **必ずジャンル制限を掛ける**のがこの関数の役目。
- * URLを直に書くとジャンル指定を付け忘れる（実際に一度やらかした）ので、
- * 組み立てを1か所に集約している。
+ *
+ * 役目が2つある。
+ *  1. **必ずジャンル制限を掛ける**（付け忘れるとコスメ以外が候補に出る）
+ *  2. **applicationId と accessKey を両方載せる**
+ *
+ * 現在の楽天ウェブサービスは、アプリごとに
+ *   アプリケーションID … UUID形式（例: ec65ace1-9e87-4d23-83e4-...）
+ *   アクセスキー       … pk_ で始まる文字列
+ * の2つを発行し、公式のAPIテストフォームもこの両方をクエリに載せている。
+ * applicationId だけだと wrong_parameter で弾かれる。
  */
 export function buildRakutenUrl(
   appId: string,
-  params: { keyword: string; hits?: number; genreId?: string }
+  params: { keyword: string; hits?: number; genreId?: string; accessKey?: string }
 ): string {
   const query = new URLSearchParams({
     applicationId: appId,
@@ -101,6 +108,7 @@ export function buildRakutenUrl(
     format: 'json',
     genreId: params.genreId || DEFAULT_COSMETICS_GENRE_ID,
   })
+  if (params.accessKey) query.set('accessKey', params.accessKey)
   return `${RAKUTEN_ENDPOINT}?${query.toString()}`
 }
 
